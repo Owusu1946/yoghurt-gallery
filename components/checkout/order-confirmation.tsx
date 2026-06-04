@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/auth-context";
+import { useCart } from "@/context/cart-context";
 import { saveUserOrder } from "@/lib/order-history";
 import { toStoredOrder } from "@/lib/order-storage";
 import type { StoredOrder } from "@/lib/orders";
