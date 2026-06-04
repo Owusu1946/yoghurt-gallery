@@ -69,21 +69,23 @@ export function BottomNav() {
           const badge = isCart ? cartBadge : isWishlist ? wishBadge : 0;
 
           const className = cn(
-            "relative flex min-h-[3.25rem] min-w-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[9px] font-semibold uppercase tracking-[0.12em] transition-colors",
+            "relative flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[9px] font-semibold uppercase tracking-[0.14em] transition-colors",
             active ? "text-brand" : "text-brand/45",
           );
 
           const iconEl = (
             <>
-              <span className="relative">
-                <Icon className="h-5 w-5" strokeWidth={active ? 1.75 : 1.25} />
+              <span className="relative flex h-5 w-5 items-center justify-center">
+                <Icon className="h-5 w-5" strokeWidth={1.5} />
                 {badge > 0 ? (
-                  <span className="absolute -right-2 -top-1.5">
+                  <span className="absolute -right-2.5 -top-1.5">
                     <NavBadge count={badge} />
                   </span>
                 ) : null}
               </span>
-              <span>{tab.label}</span>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.14em]">
+                {tab.label}
+              </span>
               {isAccount && isAuthenticated && user ? (
                 <span className="absolute right-[calc(50%-1.25rem)] top-2 h-1.5 w-1.5 rounded-full bg-brand" />
               ) : null}

@@ -16,15 +16,15 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const backHref = `/shop?category=${categoryMeta[product.category].collectionSlug}`;
 
   return (
-    <div className="mx-auto max-w-7xl px-6 pb-16 pt-6 lg:pb-20 lg:pt-8">
+    <div className="page-shell mx-auto max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:pb-20 lg:pt-8">
       <Link
         href={backHref}
-        className="text-xs font-semibold uppercase tracking-[0.24em] text-brand/60 transition-opacity hover:text-brand"
+        className="inline-flex min-h-10 items-center text-xs font-semibold uppercase tracking-[0.24em] text-brand/60 transition-opacity hover:text-brand"
       >
         ← Back to shop
       </Link>
 
-      <div className="mt-8 grid gap-10 lg:mt-10 lg:grid-cols-2 lg:gap-16">
+      <div className="mt-6 grid gap-8 lg:mt-10 lg:grid-cols-2 lg:gap-16">
         {/* Details — left on desktop */}
         <div className="order-2 flex flex-col lg:order-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-brand/50">
@@ -71,7 +71,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
         </div>
 
         {/* Image — right on desktop */}
-        <div className="relative order-1 aspect-[3/4] w-full bg-brand/[0.03] lg:order-2 lg:sticky lg:top-28 lg:self-start">
+        <div className="relative order-1 aspect-[3/4] w-full overflow-hidden bg-white lg:order-2 lg:sticky lg:top-28 lg:self-start">
           <Image
             src={product.image}
             alt={product.name}
@@ -80,7 +80,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
             sizes="(max-width: 1024px) 100vw, 50vw"
             className={cn(
               "object-center",
-              isMockup ? "object-contain p-6 lg:p-10" : "object-cover",
+              isMockup ? "object-contain p-4 sm:p-6 lg:p-10" : "object-cover",
             )}
           />
         </div>

@@ -11,13 +11,16 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Utility row */}
         <div className="relative flex h-14 items-center justify-between lg:h-16">
-          <div className="flex w-24 items-center lg:w-40">
+          <div className="flex items-center lg:w-40">
             <NavbarMobile />
           </div>
 
+          {/* Spacer keeps search aligned right on mobile (no center logo) */}
+          <div className="flex-1 lg:hidden" aria-hidden />
+
           <Link
             href="/"
-            className="group absolute left-1/2 flex -translate-x-1/2 flex-col items-center text-center"
+            className="group absolute left-1/2 hidden -translate-x-1/2 flex-col items-center text-center lg:flex"
           >
             <span className="font-display text-lg font-normal uppercase tracking-[0.32em] text-brand sm:text-xl lg:text-2xl">
               Yoghurt

@@ -36,7 +36,7 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
+    <div className="page-shell flex flex-1 flex-col bg-white">
       <ProductDetail product={product} />
     </div>
   );

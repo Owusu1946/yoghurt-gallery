@@ -1,5 +1,6 @@
 "use client";
 
+import { OrderHistory } from "@/components/account/order-history";
 import { useAuth } from "@/context/auth-context";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,7 +22,7 @@ export function AccountHub() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-8 pb-24 sm:px-6 lg:py-16 lg:pb-16">
+    <div className="page-shell mx-auto max-w-lg px-4 py-8 pb-24 sm:px-6 lg:py-16 lg:pb-16">
       <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand/50">
         Your account
       </p>
@@ -29,7 +30,7 @@ export function AccountHub() {
         {user.fullName}
       </h1>
 
-      <dl className="mt-10 space-y-6 border-t border-brand/10 pt-8">
+      <dl className="mt-8 grid gap-6 border-t border-brand/10 pt-8 sm:grid-cols-2">
         <div>
           <dt className="text-[10px] font-semibold uppercase tracking-[0.24em] text-brand/45">
             Email
@@ -44,7 +45,9 @@ export function AccountHub() {
         </div>
       </dl>
 
-      <div className="mt-10 flex flex-col gap-3">
+      <OrderHistory userId={user.id} />
+
+      <div className="mt-10 flex flex-col gap-3 border-t border-brand/10 pt-8">
         <Link
           href="/shop"
           className="inline-flex justify-center border border-brand bg-brand px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.24em] text-white transition-opacity hover:opacity-90"

@@ -25,12 +25,17 @@ export type OrderCustomer = {
 
 export type PlacedOrder = {
   id: string;
+  userId?: string;
   createdAt: string;
   paymentMethod: typeof paymentOnDelivery.id;
   paymentLabel: string;
   customer: OrderCustomer;
   lines: CartLine[];
   subtotal: number;
+};
+
+export type StoredOrder = PlacedOrder & {
+  userId: string;
 };
 
 export type CheckoutFormInput = {

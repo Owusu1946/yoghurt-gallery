@@ -19,7 +19,8 @@ import {
   type CheckoutFormErrors,
   type CheckoutFormInput,
 } from "@/lib/orders";
-import { sanitizeOrderForStorage } from "@/lib/order-storage";
+import { saveUserOrder } from "@/lib/order-history";
+import { toStoredOrder } from "@/lib/order-storage";
 import {
   LAST_ORDER_STORAGE_KEY,
   PENDING_ORDER_REF_KEY,
@@ -124,8 +125,10 @@ export function CheckoutForm() {
       }
 
       const order = buildPlacedOrder(result.orderId, customer, [...items]);
-      const storedOrder = sanitizeOrderForStorage(order);
+      if (!user) return;
+      const storedOrder = toStoredOrder(order, user.id);
       writeStorage(LAST_ORDER_STORAGE_KEY, storedOrder);
+      saveUserOrder(storedOrder);
       writeSessionStorage(PENDING_ORDER_REF_KEY, result.orderId);
       clearCheckoutDraft();
       router.replace(

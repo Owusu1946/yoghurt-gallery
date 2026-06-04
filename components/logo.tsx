@@ -8,13 +8,15 @@ type LogoProps = {
 
 export function Logo({ className, priority = false }: LogoProps) {
   return (
-    <Image
-      src="/logo-main.jpg"
-      alt="Yoghurt Clothing Gallery"
-      width={160}
-      height={160}
-      priority={priority}
-      className={cn("h-auto w-auto object-contain", className)}
-    />
+    <span className={cn("relative inline-block shrink-0", className)}>
+      <Image
+        src="/logo-main.jpg"
+        alt="Yoghurt Clothing Gallery"
+        fill
+        priority={priority}
+        sizes="112px"
+        className="object-contain object-center"
+      />
+    </span>
   );
 }

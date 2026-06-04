@@ -19,7 +19,10 @@ import {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useCart } from "@/context/cart-context";
+import { useAuth } from "@/context/auth-context";
+import { saveUserOrder } from "@/lib/order-history";
+import { toStoredOrder } from "@/lib/order-storage";
+import type { StoredOrder } from "@/lib/orders";
 
 function formatOrderDate(iso: string): string {
   return new Intl.DateTimeFormat("en-GH", {
@@ -81,6 +84,7 @@ export function OrderConfirmation() {
   const searchParams = useSearchParams();
   const ref = searchParams.get("ref");
   const { clearCart } = useCart();
+  const { user } = useAuth();
   const [order, setOrder] = useState<PlacedOrder | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -96,9 +100,14 @@ export function OrderConfirmation() {
       setOrder(stored);
       clearCart();
       removeSessionStorage(PENDING_ORDER_REF_KEY);
+
+      const userId = user?.id ?? (stored as StoredOrder).userId;
+      if (userId) {
+        saveUserOrder(toStoredOrder(stored, userId));
+      }
     }
     setReady(true);
-  }, [ref, clearCart]);
+  }, [ref, clearCart, user?.id]);
 
   if (!ready) {
     return null;
@@ -215,18 +224,18 @@ export function OrderConfirmation() {
         Delivery fee (if any) is added after we confirm your location.
       </p>
 
-      <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+      <div className="mt-10 flex flex-col gap-3 sm:flex-row">
         <Link
-          href="/shop"
+          href={`/account/orders/${encodeURIComponent(order.id)}`}
           className="inline-flex justify-center border border-brand bg-brand px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.24em] text-white transition-opacity hover:opacity-90"
         >
-          Continue shopping
+          Track order
         </Link>
         <Link
-          href="/contact"
+          href="/shop"
           className="inline-flex justify-center border border-brand/25 px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.24em] text-brand transition-colors hover:border-brand"
         >
-          Contact us
+          Continue shopping
         </Link>
       </div>
     </div>
