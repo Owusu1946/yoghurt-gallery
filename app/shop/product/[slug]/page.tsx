@@ -1,7 +1,6 @@
-import { ProductDetail } from "@/components/shop/product-detail";
+import { ProductDetailLoader } from "@/components/shop/product-detail-loader";
 import { allProducts, getProductBySlug } from "@/data/products";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -31,13 +30,9 @@ export default async function ProductPage({ params }: PageProps) {
   const { slug } = await params;
   const product = getProductBySlug(slug);
 
-  if (!product) {
-    notFound();
-  }
-
   return (
     <div className="page-shell flex flex-1 flex-col bg-white">
-      <ProductDetail product={product} />
+      <ProductDetailLoader slug={slug} staticProduct={product ?? null} />
     </div>
   );
 }

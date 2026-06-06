@@ -20,6 +20,7 @@ import {
   type CheckoutFormInput,
 } from "@/lib/orders";
 import { saveUserOrder } from "@/lib/order-history";
+import { fulfillOrderStock, validateCartStock } from "@/lib/product-inventory";
 import { toStoredOrder } from "@/lib/order-storage";
 import {
   LAST_ORDER_STORAGE_KEY,
@@ -118,6 +119,12 @@ export function CheckoutForm() {
       return;
     }
 
+    const stockError = validateCartStock(items);
+    if (stockError) {
+      toast.error("Stock issue", { description: stockError });
+      return;
+    }
+
     setSubmitting(true);
     setErrors({});
 
@@ -143,6 +150,7 @@ export function CheckoutForm() {
       const storedOrder = toStoredOrder(order, user.id);
       writeStorage(LAST_ORDER_STORAGE_KEY, storedOrder);
       saveUserOrder(storedOrder);
+      fulfillOrderStock(order.lines);
       writeSessionStorage(PENDING_ORDER_REF_KEY, result.orderId);
       clearCheckoutDraft();
       router.replace(

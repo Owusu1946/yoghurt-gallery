@@ -13,6 +13,7 @@ import {
   getReturnToFromSearchParam,
   setAuthReturnUrl,
 } from "@/lib/auth-return";
+import { ADMIN_EMAIL } from "@/lib/admin-auth";
 import { toast } from "@/lib/toast";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -82,7 +83,9 @@ export function SignInForm() {
     toast.success("Welcome back", {
       description: `Signed in as ${user.fullName}`,
     });
-    router.replace(consumeAuthReturnUrl(returnTo));
+    router.replace(
+      user.email === ADMIN_EMAIL ? "/admin" : consumeAuthReturnUrl(returnTo),
+    );
   }
 
   const signUpHref =

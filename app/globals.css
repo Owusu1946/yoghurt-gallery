@@ -7,6 +7,7 @@
   --brand-muted: rgb(139 58 31 / 0.7);
   --brand-border: rgb(139 58 31 / 0.15);
   --mobile-nav-height: calc(3.25rem + env(safe-area-inset-bottom, 0px));
+  --admin-nav-height: 3.5rem;
 }
 
 @theme inline {

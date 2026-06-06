@@ -1,6 +1,7 @@
 "use client";
 
 import { ProductGrid } from "@/components/shop/product-grid";
+import { getCatalogProducts, subscribeCatalog } from "@/lib/product-catalog";
 import { popularSearches, searchCatalog } from "@/lib/search";
 import { cn } from "@/lib/cn";
 import { Search } from "lucide-react";
@@ -13,7 +14,10 @@ export function SearchPage() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
   const [query, setQuery] = useState(initialQuery);
+  const [catalogVersion, setCatalogVersion] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => subscribeCatalog(() => setCatalogVersion((v) => v + 1)), []);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -46,7 +50,10 @@ export function SearchPage() {
     return () => window.clearTimeout(timer);
   }, [query, initialQuery, updateUrl]);
 
-  const results = useMemo(() => searchCatalog(query), [query]);
+  const results = useMemo(() => {
+    void catalogVersion;
+    return searchCatalog(query, getCatalogProducts());
+  }, [query, catalogVersion]);
   const hasQuery = query.trim().length >= 2;
   const totalResults = results.products.length + results.links.length;
 

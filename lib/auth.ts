@@ -1,3 +1,7 @@
+import {
+  ADMIN_DEFAULT_PASSWORD,
+  ADMIN_EMAIL,
+} from "@/lib/admin-auth";
 import { AUTH_USERS_KEY, readStorage, writeStorage } from "@/lib/storage";
 
 export type AuthUser = {
@@ -168,6 +172,42 @@ export async function createUser(input: SignUpInput): Promise<AuthUser> {
   };
 }
 
+async function authenticateAdminUser(
+  input: SignInInput,
+): Promise<AuthUser | null> {
+  const email = normalizeEmail(input.identifier);
+  if (email !== ADMIN_EMAIL) return null;
+
+  const passwordHash = await hashPassword(input.password);
+  const expectedHash = await hashPassword(ADMIN_DEFAULT_PASSWORD);
+  if (passwordHash !== expectedHash) return null;
+
+  const registry = readRegistry();
+  let stored = registry.byEmail[email];
+
+  if (!stored) {
+    stored = {
+      id: "user_admin",
+      fullName: "Admin",
+      email,
+      phone: "0500000000",
+      createdAt: new Date().toISOString(),
+      passwordHash: expectedHash,
+    };
+    registry.byEmail[email] = stored;
+    registry.byPhone[stored.phone] = email;
+    writeRegistry(registry);
+  }
+
+  return {
+    id: stored.id,
+    fullName: stored.fullName,
+    email: stored.email,
+    phone: stored.phone,
+    createdAt: stored.createdAt,
+  };
+}
+
 export async function authenticateUser(
   input: SignInInput,
 ): Promise<AuthUser | null> {
@@ -176,8 +216,13 @@ export async function authenticateUser(
     return null;
   }
 
-  const registry = readRegistry();
   const identifier = input.identifier.trim();
+  if (identifier.includes("@") && normalizeEmail(identifier) === ADMIN_EMAIL) {
+    const admin = await authenticateAdminUser(input);
+    if (admin) return admin;
+  }
+
+  const registry = readRegistry();
   const emailKey = identifier.includes("@")
     ? normalizeEmail(identifier)
     : registry.byPhone[normalizePhone(identifier)];

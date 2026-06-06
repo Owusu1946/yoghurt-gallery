@@ -1,4 +1,5 @@
 export const mainNavLinks = [
+  { href: "/", label: "Home" },
   { href: "/shop", label: "Shop" },
   { href: "/customize", label: "Customize" },
   { href: "/fashion", label: "Fashion Brand" },

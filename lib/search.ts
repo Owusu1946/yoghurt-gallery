@@ -45,13 +45,16 @@ function matchesQuery(text: string, query: string): boolean {
   return text.toLowerCase().includes(query);
 }
 
-export function searchCatalog(query: string): SearchResult {
+export function searchCatalog(
+  query: string,
+  catalog: Product[] = allProducts,
+): SearchResult {
   const q = query.trim().toLowerCase();
   if (q.length < 2) {
     return { products: [], links: [] };
   }
 
-  const products = allProducts.filter((product) => {
+  const products = catalog.filter((product) => {
     const categoryLabel = categoryMeta[product.category].title;
     return (
       matchesQuery(product.name, q) ||

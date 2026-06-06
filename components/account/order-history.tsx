@@ -1,7 +1,7 @@
 "use client";
 
 import { OrderCard } from "@/components/account/order-card";
-import { deriveOrderStatus } from "@/data/order-status";
+import { getEffectiveOrderStatus } from "@/lib/admin-order-status";
 import { getUserOrders } from "@/lib/order-history";
 import type { StoredOrder } from "@/lib/orders";
 import Link from "next/link";
@@ -16,8 +16,13 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setOrders(getUserOrders(userId));
-    setReady(true);
+    function refresh() {
+      setOrders(getUserOrders(userId));
+      setReady(true);
+    }
+    refresh();
+    window.addEventListener("yoghurt-admin-order-status", refresh);
+    return () => window.removeEventListener("yoghurt-admin-order-status", refresh);
   }, [userId]);
 
   if (!ready) {
@@ -59,7 +64,7 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
           <li key={order.id}>
             <OrderCard
               order={order}
-              status={deriveOrderStatus(order.createdAt)}
+              status={getEffectiveOrderStatus(order.id, order.createdAt)}
             />
           </li>
         ))}

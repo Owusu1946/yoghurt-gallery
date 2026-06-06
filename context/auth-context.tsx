@@ -8,6 +8,7 @@ import {
   type SignInInput,
   type SignUpInput,
 } from "@/lib/auth";
+import { authenticateAdmin, ADMIN_EMAIL } from "@/lib/admin-auth";
 import { AUTH_SESSION_KEY, readStorage, writeStorage } from "@/lib/storage";
 import {
   createContext,
@@ -70,6 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const authenticated = await authenticateUser(input);
     if (!authenticated) {
       return null;
+    }
+    if (authenticated.email === ADMIN_EMAIL) {
+      await authenticateAdmin(authenticated.email, input.password);
     }
     persistSession(authenticated.id);
     setUser(authenticated);

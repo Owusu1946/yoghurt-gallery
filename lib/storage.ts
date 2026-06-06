@@ -6,6 +6,10 @@ export const AUTH_USERS_KEY = "yoghurt-auth-users";
 export const CHECKOUT_DRAFT_KEY = "yoghurt-checkout-draft";
 export const PENDING_ORDER_REF_KEY = "yoghurt-pending-order-ref";
 export const ORDERS_STORAGE_KEY = "yoghurt-orders";
+export const ADMIN_SESSION_KEY = "yoghurt-admin-session";
+export const ADMIN_PRODUCTS_KEY = "yoghurt-admin-products";
+export const ADMIN_ORDER_STATUS_KEY = "yoghurt-admin-order-status";
+export const ADMIN_SETTINGS_KEY = "yoghurt-admin-settings";
 
 export function readStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;

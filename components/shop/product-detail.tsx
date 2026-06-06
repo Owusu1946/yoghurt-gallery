@@ -1,8 +1,6 @@
-import type { Product } from "@/data/products";
-import { categoryMeta } from "@/data/products";
+import { ProductMedia } from "@/components/shop/product-media";
+import { categoryMeta, isProductSoldOut, type Product } from "@/data/products";
 import { formatGhs } from "@/lib/format-ghs";
-import { cn } from "@/lib/cn";
-import Image from "next/image";
 import Link from "next/link";
 import { ProductPurchaseOptions } from "./product-purchase-options";
 import { WishlistButton } from "./wishlist-button";
@@ -13,6 +11,7 @@ type ProductDetailProps = {
 
 export function ProductDetail({ product }: ProductDetailProps) {
   const isMockup = product.image.startsWith("/mockups");
+  const soldOut = isProductSoldOut(product);
   const backHref = `/shop?category=${categoryMeta[product.category].collectionSlug}`;
 
   return (
@@ -41,7 +40,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
             />
           </div>
           <p className="mt-3 text-lg font-semibold text-brand">
-            {formatGhs(product.priceGhs)}
+            {soldOut ? (
+              <span className="text-[11px] uppercase tracking-[0.2em] text-brand/45">
+                Sold out
+              </span>
+            ) : (
+              formatGhs(product.priceGhs)
+            )}
           </p>
           <p className="mt-5 max-w-md text-sm font-medium leading-relaxed text-brand/75">
             {product.description}
@@ -73,16 +78,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
         {/* Image — right on desktop */}
         <div className="relative order-1 aspect-[3/4] w-full overflow-hidden bg-white lg:order-2 lg:sticky lg:top-28 lg:self-start">
-          <Image
-            src={product.image}
+          <ProductMedia
+            front={product.image}
+            back={product.imageBack}
             alt={product.name}
-            fill
             priority
             sizes="(max-width: 1024px) 100vw, 50vw"
-            className={cn(
-              "object-center",
-              isMockup ? "object-contain p-4 sm:p-6 lg:p-10" : "object-cover",
-            )}
+            contain={isMockup}
           />
         </div>
       </div>

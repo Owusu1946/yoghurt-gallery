@@ -1,11 +1,19 @@
 "use client";
 
 import { useCart } from "@/context/cart-context";
-import type { Product, ProductColor, ProductSize } from "@/data/products";
-import { PRODUCT_SIZES } from "@/data/products";
+import {
+  isProductSoldOut,
+  PRODUCT_SIZES,
+  type Product,
+  type ProductColor,
+  type ProductSize,
+} from "@/data/products";
+import { getMaxPurchaseQuantity } from "@/lib/product-inventory";
+import { getCatalogProductBySlug } from "@/lib/product-catalog";
 import { cn } from "@/lib/cn";
 import { toast } from "@/lib/toast";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { subscribeCatalog } from "@/lib/product-catalog";
 import { QuantitySelector } from "./quantity-selector";
 import { WishlistButton } from "./wishlist-button";
 
@@ -104,12 +112,23 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
   );
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [catalogVersion, setCatalogVersion] = useState(0);
+
+  useEffect(() => subscribeCatalog(() => setCatalogVersion((v) => v + 1)), []);
+
+  const live = getCatalogProductBySlug(product.slug) ?? product;
+  void catalogVersion;
+  const soldOut = isProductSoldOut(live);
+  const maxQty = getMaxPurchaseQuantity(live);
 
   const canAdd =
-    size !== null && (!product.colors?.length || color !== null);
+    !soldOut &&
+    maxQty > 0 &&
+    size !== null &&
+    (!product.colors?.length || color !== null);
 
   async function handleAddToBag() {
-    if (adding) return;
+    if (adding || soldOut) return;
 
     if (!size) {
       toast.warning("Select a size", {
@@ -121,6 +140,13 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
     if (product.colors?.length && !color) {
       toast.warning("Select a color", {
         description: "Choose a color before adding to bag.",
+      });
+      return;
+    }
+
+    if (quantity > maxQty) {
+      toast.warning("Not enough stock", {
+        description: `Only ${maxQty} available.`,
       });
       return;
     }
@@ -147,6 +173,19 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
     }
   }
 
+  if (soldOut) {
+    return (
+      <div className="border border-brand/15 bg-brand/[0.03] px-5 py-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand/55">
+          Sold out
+        </p>
+        <p className="mt-2 text-sm text-brand/60">
+          This item is currently unavailable. Check back soon.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <SizeSelector selected={size} onSelect={setSize} />
@@ -159,7 +198,11 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
         />
       ) : null}
 
-      <QuantitySelector value={quantity} onChange={setQuantity} />
+      <QuantitySelector
+        value={quantity}
+        onChange={setQuantity}
+        max={maxQty}
+      />
 
       <div className="flex flex-wrap items-center gap-4">
         <button
@@ -174,7 +217,7 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
               : "cursor-not-allowed border-brand/20 text-brand/35",
           )}
         >
-          {adding ? "Adding…" : "Add to bag"}
+          {adding ? "Adding…" : maxQty <= 5 ? `Add to bag · ${maxQty} left` : "Add to bag"}
         </button>
 
         <div className="flex items-center gap-2">

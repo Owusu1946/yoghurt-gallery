@@ -2,7 +2,6 @@
 
 import { useCart } from "@/context/cart-context";
 import {
-  calculateCustomTeePrice,
   createCustomTeeDesign,
   customizerColors,
   defaultPlacement,
@@ -14,6 +13,8 @@ import {
   type SideDesign,
 } from "@/data/customizer";
 import { PRODUCT_SIZES, type ProductSize } from "@/data/products";
+import { calculateCustomizerPrice } from "@/lib/customizer-pricing";
+import { subscribeAdminSettings } from "@/lib/admin-settings";
 import { formatGhs } from "@/lib/format-ghs";
 import {
   createCustomTeeThumbnail,
@@ -22,7 +23,7 @@ import {
 } from "@/lib/image-utils";
 import { cn } from "@/lib/cn";
 import { toast } from "@/lib/toast";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QuantitySelector } from "../shop/quantity-selector";
 import { DesignUpload, PlacementControls } from "./design-controls";
 import {
@@ -45,6 +46,12 @@ export function CustomizerStudio() {
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pricingVersion, setPricingVersion] = useState(0);
+
+  useEffect(
+    () => subscribeAdminSettings(() => setPricingVersion((v) => v + 1)),
+    [],
+  );
 
   const [front, setFront] = useState<SideDesign>(emptySideDesign);
   const [back, setBack] = useState<SideDesign>(emptySideDesign);
@@ -57,10 +64,10 @@ export function CustomizerStudio() {
     [selectedColor, front, back],
   );
 
-  const price = useMemo(
-    () => calculateCustomTeePrice(customTeeDesign),
-    [customTeeDesign],
-  );
+  const price = useMemo(() => {
+    void pricingVersion;
+    return calculateCustomizerPrice(customTeeDesign);
+  }, [customTeeDesign, pricingVersion]);
 
   function switchView(side: CustomTeeSide) {
     setActiveView(side);

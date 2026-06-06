@@ -19,12 +19,23 @@ export type Product = {
   slug: string;
   name: string;
   image: string;
+  imageBack?: string;
   priceGhs: number;
   category: ProductCategory;
   description: string;
   details: string[];
   colors?: ProductColor[];
+  /** When set, product sells out at 0. Omit for unlimited stock. */
+  stock?: number;
 };
+
+export function isProductSoldOut(product: Product): boolean {
+  return product.stock !== undefined && product.stock <= 0;
+}
+
+export function getProductStock(product: Product): number | null {
+  return product.stock !== undefined ? product.stock : null;
+}
 
 const plainTeeColors: ProductColor[] = [
   { id: "white", name: "White", hex: "#FFFFFF" },

@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/auth-context";
 import { useCart } from "@/context/cart-context";
 import { useWishlist } from "@/context/wishlist-context";
+import { isAdminPath } from "@/data/admin-nav";
 import { cn } from "@/lib/cn";
 import { Heart, Home, ShoppingBag, Store, User } from "lucide-react";
 import Link from "next/link";
@@ -49,6 +50,10 @@ export function BottomNav() {
 
   const cartBadge = cartReady ? itemCount : 0;
   const wishBadge = wishReady ? count : 0;
+
+  if (isAdminPath(pathname)) {
+    return null;
+  }
 
   return (
     <nav

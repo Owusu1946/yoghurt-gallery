@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Geist } from "next/font/google";
-import { Footer } from "@/components/footer";
-import { Navbar } from "@/components/navbar";
-import { BottomNav } from "@/components/mobile/bottom-nav";
+import { SiteChrome } from "@/components/layout/site-chrome";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
@@ -35,12 +33,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col bg-white text-brand">
         <AppProviders>
-          <Navbar />
-          <main className="flex flex-1 flex-col">{children}</main>
-          <div className="hidden lg:block">
-            <Footer />
-          </div>
-          <BottomNav />
+          <SiteChrome>{children}</SiteChrome>
         </AppProviders>
       </body>
     </html>

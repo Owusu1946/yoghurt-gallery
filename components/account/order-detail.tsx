@@ -4,10 +4,8 @@ import { CartLineItem } from "@/components/cart/cart-line-item";
 import { OrderTracker } from "@/components/account/order-tracker";
 import { useAuth } from "@/context/auth-context";
 import { paymentOnDelivery } from "@/data/checkout";
-import {
-  deriveOrderStatus,
-  orderStatusLabels,
-} from "@/data/order-status";
+import { orderStatusLabels } from "@/data/order-status";
+import { getEffectiveOrderStatus } from "@/lib/admin-order-status";
 import { formatGhs } from "@/lib/format-ghs";
 import { getUserOrder } from "@/lib/order-history";
 import {
@@ -61,8 +59,13 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
       router.replace("/account/sign-in");
       return;
     }
-    setOrder(getUserOrder(user.id, decodeURIComponent(orderId)));
-    setReady(true);
+    function refresh() {
+      setOrder(getUserOrder(user!.id, decodeURIComponent(orderId)));
+      setReady(true);
+    }
+    refresh();
+    window.addEventListener("yoghurt-admin-order-status", refresh);
+    return () => window.removeEventListener("yoghurt-admin-order-status", refresh);
   }, [hydrated, isAuthenticated, user, orderId, router]);
 
   if (!ready || !user) {
@@ -95,7 +98,7 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
     );
   }
 
-  const status = deriveOrderStatus(order.createdAt);
+  const status = getEffectiveOrderStatus(order.id, order.createdAt);
 
   return (
     <div className="page-shell mx-auto max-w-lg px-4 py-6 pb-24 sm:px-6 lg:py-10">

@@ -1,10 +1,11 @@
 "use client";
 
+import { categoryMeta } from "@/data/products";
 import {
-  allProducts,
-  categoryMeta,
-  getProductsByCategory,
-} from "@/data/products";
+  getCatalogProducts,
+  getCatalogProductsByCategory,
+  subscribeCatalog,
+} from "@/lib/product-catalog";
 import {
   getFilterDescription,
   getFilterLabel,
@@ -13,7 +14,7 @@ import {
 } from "@/data/shop-filters";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProductGrid } from "./product-grid";
 
 type ShopCatalogProps = {
@@ -47,11 +48,15 @@ function FilterButton({
 
 export function ShopCatalog({ initialFilter = "all" }: ShopCatalogProps) {
   const [activeFilter, setActiveFilter] = useState<ShopFilterId>(initialFilter);
+  const [catalogVersion, setCatalogVersion] = useState(0);
+
+  useEffect(() => subscribeCatalog(() => setCatalogVersion((v) => v + 1)), []);
 
   const products = useMemo(() => {
-    if (activeFilter === "all") return allProducts;
-    return getProductsByCategory(activeFilter);
-  }, [activeFilter]);
+    void catalogVersion;
+    if (activeFilter === "all") return getCatalogProducts();
+    return getCatalogProductsByCategory(activeFilter);
+  }, [activeFilter, catalogVersion]);
 
   const setFilter = useCallback((id: ShopFilterId) => {
     setActiveFilter(id);

@@ -3,10 +3,11 @@
 import { useCart } from "@/context/cart-context";
 import { useWishlist } from "@/context/wishlist-context";
 import { cn } from "@/lib/cn";
-import { Search, ShoppingBag, Heart, User } from "lucide-react";
+import { Heart, LayoutDashboard, Search, ShoppingBag, User } from "lucide-react";
 import Link from "next/link";
 import { NavBadge } from "./nav-badge";
 import { navIconProps } from "./nav-icon";
+import { useAdmin } from "@/context/admin-context";
 import { useAuth } from "@/context/auth-context";
 
 function NavIconLink({
@@ -125,12 +126,18 @@ function WishlistNavControl({ badge }: { badge: number }) {
 export function NavbarActions() {
   const { itemCount, cartPulse, hydrated: cartReady } = useCart();
   const { count: wishlistCount, hydrated: wishlistReady } = useWishlist();
+  const { isAdmin, hydrated: adminReady } = useAdmin();
 
   const cartBadge = cartReady ? itemCount : 0;
   const wishBadge = wishlistReady ? wishlistCount : 0;
 
   return (
     <div className="flex items-center gap-1 sm:gap-2">
+      {adminReady && isAdmin ? (
+        <NavIconLink href="/admin" label="Admin dashboard">
+          <LayoutDashboard {...navIconProps} />
+        </NavIconLink>
+      ) : null}
       <NavIconLink href="/search" label="Search">
         <Search {...navIconProps} />
       </NavIconLink>
