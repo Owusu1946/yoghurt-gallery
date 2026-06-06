@@ -4,6 +4,7 @@ import { useCart } from "@/context/cart-context";
 import type { Product, ProductColor, ProductSize } from "@/data/products";
 import { PRODUCT_SIZES } from "@/data/products";
 import { cn } from "@/lib/cn";
+import { toast } from "@/lib/toast";
 import { useRef, useState } from "react";
 import { QuantitySelector } from "./quantity-selector";
 import { WishlistButton } from "./wishlist-button";
@@ -108,7 +109,21 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
     size !== null && (!product.colors?.length || color !== null);
 
   async function handleAddToBag() {
-    if (!canAdd || !size || adding) return;
+    if (adding) return;
+
+    if (!size) {
+      toast.warning("Select a size", {
+        description: "Choose your size before adding to bag.",
+      });
+      return;
+    }
+
+    if (product.colors?.length && !color) {
+      toast.warning("Select a color", {
+        description: "Choose a color before adding to bag.",
+      });
+      return;
+    }
 
     setAdding(true);
     try {
@@ -124,6 +139,9 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
         },
         addButtonRef.current,
       );
+      toast.success("Added to bag", {
+        description: `${product.name} · Size ${size}${quantity > 1 ? ` · ×${quantity}` : ""}`,
+      });
     } finally {
       setAdding(false);
     }
@@ -160,7 +178,7 @@ export function ProductPurchaseOptions({ product }: ProductPurchaseOptionsProps)
         </button>
 
         <div className="flex items-center gap-2">
-          <WishlistButton productSlug={product.slug} />
+          <WishlistButton productSlug={product.slug} productName={product.name} />
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand/50">
             Wishlist
           </span>

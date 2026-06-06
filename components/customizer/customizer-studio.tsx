@@ -3,12 +3,15 @@
 import { useCart } from "@/context/cart-context";
 import {
   calculateCustomTeePrice,
+  createCustomTeeDesign,
   customizerColors,
   defaultPlacement,
-  printZones,
+  designHasPrint,
+  emptySideDesign,
+  sideHasPrint,
   type CustomTeeDesign,
   type CustomTeeSide,
-  type DesignPlacement,
+  type SideDesign,
 } from "@/data/customizer";
 import { PRODUCT_SIZES, type ProductSize } from "@/data/products";
 import { formatGhs } from "@/lib/format-ghs";
@@ -18,96 +21,136 @@ import {
   validateDesignFile,
 } from "@/lib/image-utils";
 import { cn } from "@/lib/cn";
+import { toast } from "@/lib/toast";
 import { useMemo, useRef, useState } from "react";
 import { QuantitySelector } from "../shop/quantity-selector";
-import { DesignControls, DesignUpload } from "./design-controls";
-import { TeePreview } from "./tee-preview";
+import { DesignUpload, PlacementControls } from "./design-controls";
+import {
+  defaultTextDesign,
+  TextDesignControls,
+} from "./text-design-controls";
+import { TeePreview, type DesignLayerKind } from "./tee-preview";
+
+type DesignTab = "image" | "text";
 
 export function CustomizerStudio() {
   const { addCustomTeeToCart } = useCart();
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const [activeView, setActiveView] = useState<CustomTeeSide>("front");
+  const [designTab, setDesignTab] = useState<DesignTab>("image");
+  const [activeLayer, setActiveLayer] = useState<DesignLayerKind | null>(null);
   const [selectedColor, setSelectedColor] = useState(customizerColors[0]);
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
-
-  const [frontImage, setFrontImage] = useState<string | null>(null);
-  const [backImage, setBackImage] = useState<string | null>(null);
-  const [frontPlacement, setFrontPlacement] =
-    useState<DesignPlacement>(defaultPlacement);
-  const [backPlacement, setBackPlacement] =
-    useState<DesignPlacement>(defaultPlacement);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const price = useMemo(
-    () => calculateCustomTeePrice(Boolean(frontImage), Boolean(backImage)),
-    [frontImage, backImage],
+  const [front, setFront] = useState<SideDesign>(emptySideDesign);
+  const [back, setBack] = useState<SideDesign>(emptySideDesign);
+
+  const currentSide = activeView === "front" ? front : back;
+  const setCurrentSide = activeView === "front" ? setFront : setBack;
+
+  const customTeeDesign = useMemo<CustomTeeDesign>(
+    () => createCustomTeeDesign(selectedColor, front, back),
+    [selectedColor, front, back],
   );
 
-  const currentDesign = activeView === "front" ? frontImage : backImage;
-  const currentPlacement =
-    activeView === "front" ? frontPlacement : backPlacement;
-  const setCurrentPlacement =
-    activeView === "front" ? setFrontPlacement : setBackPlacement;
+  const price = useMemo(
+    () => calculateCustomTeePrice(customTeeDesign),
+    [customTeeDesign],
+  );
+
+  function switchView(side: CustomTeeSide) {
+    setActiveView(side);
+    setActiveLayer(null);
+  }
 
   async function handleUpload(file: File) {
     const validationError = validateDesignFile(file);
     if (validationError) {
       setUploadError(validationError);
+      toast.error("Upload failed", { description: validationError });
       return;
     }
 
     try {
       setUploadError(null);
       const dataUrl = await readFileAsDataUrl(file);
-      if (activeView === "front") {
-        setFrontImage(dataUrl);
-        setFrontPlacement(defaultPlacement);
-      } else {
-        setBackImage(dataUrl);
-        setBackPlacement(defaultPlacement);
-      }
+      setCurrentSide((current) => ({
+        ...current,
+        image: dataUrl,
+        imagePlacement: { ...defaultPlacement },
+      }));
+      setDesignTab("image");
+      setActiveLayer("image");
     } catch {
-      setUploadError("Could not read that file. Try another image.");
+      const message = "Could not read that file. Try another image.";
+      setUploadError(message);
+      toast.error("Upload failed", { description: message });
     }
   }
 
-  function handleRemoveDesign() {
-    if (activeView === "front") {
-      setFrontImage(null);
-      setFrontPlacement(defaultPlacement);
+  function handleRemoveImage() {
+    setCurrentSide((current) => ({
+      ...current,
+      image: null,
+      imagePlacement: { ...defaultPlacement },
+    }));
+    if (currentSide.text?.content.trim()) {
+      setDesignTab("text");
+      setActiveLayer("text");
     } else {
-      setBackImage(null);
-      setBackPlacement(defaultPlacement);
+      setActiveLayer(null);
     }
   }
 
-  const canAdd =
-    selectedSize !== null && (frontImage !== null || backImage !== null);
+  function handleAddText() {
+    setCurrentSide((current) => ({
+      ...current,
+      text: defaultTextDesign(),
+    }));
+    setDesignTab("text");
+    setActiveLayer("text");
+  }
 
+  function handleRemoveText() {
+    setCurrentSide((current) => ({
+      ...current,
+      text: null,
+    }));
+    if (currentSide.image) {
+      setDesignTab("image");
+      setActiveLayer("image");
+    } else {
+      setActiveLayer(null);
+    }
+  }
+
+  const canAdd = selectedSize !== null && designHasPrint(customTeeDesign);
   const isWhite = selectedColor.hex.toLowerCase() === "#ffffff";
 
-  async function handleAddToBag() {
-    if (!canAdd || !selectedSize || adding) return;
+  async function handleAddToBag(sourceEl?: HTMLElement | null) {
+    if (adding) return;
+
+    if (!selectedSize) {
+      toast.warning("Select a size", {
+        description: "Choose your tee size before adding to bag.",
+      });
+      return;
+    }
+
+    if (!designHasPrint(customTeeDesign)) {
+      toast.warning("Add a design", {
+        description: "Upload an image or add text on the front or back.",
+      });
+      return;
+    }
 
     setAdding(true);
     try {
-      const customTee: CustomTeeDesign = {
-        colorId: selectedColor.id,
-        colorName: selectedColor.name,
-        colorHex: selectedColor.hex,
-        frontImage,
-        backImage,
-        frontPlacement,
-        backPlacement,
-      };
-
-      const thumbnail = await createCustomTeeThumbnail(
-        selectedColor.hex,
-        frontImage,
-      );
+      const thumbnail = await createCustomTeeThumbnail(customTeeDesign);
 
       await addCustomTeeToCart(
         {
@@ -116,41 +159,44 @@ export function CustomizerStudio() {
           priceGhs: price,
           size: selectedSize,
           quantity,
-          customTee,
+          customTee: customTeeDesign,
         },
-        addButtonRef.current,
+        addButtonRef.current ?? sourceEl ?? null,
       );
+      toast.success("Custom tee added", {
+        description: `${selectedColor.name} · Size ${selectedSize}${quantity > 1 ? ` · ×${quantity}` : ""}`,
+      });
     } finally {
       setAdding(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:pb-24 lg:pt-8">
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,380px)_1fr] lg:gap-16 xl:grid-cols-[minmax(0,420px)_1fr]">
-        {/* Controls */}
-        <div className="order-2 space-y-8 lg:order-1">
+    <div className="mx-auto max-w-7xl px-4 pb-32 pt-3 sm:px-6 sm:pb-24 sm:pt-4 lg:pb-24 lg:pt-8">
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-14">
+        <div className="order-2 space-y-6 lg:order-1 lg:space-y-8">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">
               Studio
             </p>
-            <h1 className="mt-2 font-display text-3xl font-semibold text-brand sm:text-4xl">
+            <h1 className="mt-2 font-display text-2xl font-semibold text-brand sm:text-3xl lg:text-4xl">
               Customize your tee
             </h1>
-            <p className="mt-3 text-sm font-medium leading-relaxed text-brand/70">
-              Upload your artwork for the front and back, drag to position, and
-              preview before you order.
+            <p className="mt-2 text-sm font-medium leading-relaxed text-brand/70 sm:mt-3">
+              Upload artwork or add text. Tap the shirt to edit, tap outside when
+              done.
             </p>
           </div>
 
           <div className="flex gap-2">
             {(["front", "back"] as const).map((side) => {
-              const hasDesign = side === "front" ? frontImage : backImage;
+              const sideData = side === "front" ? front : back;
+              const ready = sideHasPrint(sideData);
               return (
                 <button
                   key={side}
                   type="button"
-                  onClick={() => setActiveView(side)}
+                  onClick={() => switchView(side)}
                   className={cn(
                     "flex-1 border py-3 text-[10px] font-semibold uppercase tracking-[0.22em] transition-colors",
                     activeView === side
@@ -159,26 +205,62 @@ export function CustomizerStudio() {
                   )}
                 >
                   {side}
-                  {hasDesign ? " · ✓" : ""}
+                  {ready ? " · ✓" : ""}
                 </button>
               );
             })}
           </div>
 
-          <DesignUpload
-            side={activeView}
-            designUrl={currentDesign}
-            error={uploadError}
-            onUpload={handleUpload}
-          />
+          <div className="flex gap-2">
+            {(["image", "text"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  setDesignTab(tab);
+                  setActiveLayer(tab);
+                }}
+                className={cn(
+                  "flex-1 border py-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition-colors sm:py-2.5",
+                  designTab === tab
+                    ? "border-brand/40 bg-brand/[0.04] text-brand"
+                    : "border-brand/15 text-brand/50 hover:border-brand/30 hover:text-brand",
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
 
-          <DesignControls
-            side={activeView}
-            placement={currentPlacement}
-            hasDesign={Boolean(currentDesign)}
-            onChange={setCurrentPlacement}
-            onRemove={handleRemoveDesign}
-          />
+          {designTab === "image" ? (
+            <>
+              <DesignUpload
+                side={activeView}
+                designUrl={currentSide.image}
+                error={uploadError}
+                onUpload={handleUpload}
+              />
+              {currentSide.image ? (
+                <PlacementControls
+                  label={`${activeView} image`}
+                  placement={currentSide.imagePlacement}
+                  onChange={(imagePlacement) =>
+                    setCurrentSide((current) => ({ ...current, imagePlacement }))
+                  }
+                  onRemove={handleRemoveImage}
+                />
+              ) : null}
+            </>
+          ) : (
+            <TextDesignControls
+              text={currentSide.text}
+              onAdd={handleAddText}
+              onRemove={handleRemoveText}
+              onChange={(text) =>
+                setCurrentSide((current) => ({ ...current, text }))
+              }
+            />
+          )}
 
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-brand">
@@ -250,20 +332,22 @@ export function CustomizerStudio() {
             </div>
             <p className="mt-1 text-xs font-medium text-brand/50">
               {formatGhs(price)} each · base + print
-              {frontImage && backImage
+              {sideHasPrint(front) && sideHasPrint(back)
                 ? " (front & back)"
-                : frontImage
+                : sideHasPrint(front)
                   ? " (front)"
-                  : " (back)"}
+                  : sideHasPrint(back)
+                    ? " (back)"
+                    : ""}
             </p>
 
             <button
               ref={addButtonRef}
               type="button"
               disabled={!canAdd || adding}
-              onClick={handleAddToBag}
+              onClick={() => handleAddToBag()}
               className={cn(
-                "mt-6 w-full border px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.24em] transition-opacity",
+                "mt-6 hidden w-full border px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.24em] transition-opacity lg:inline-block",
                 canAdd && !adding
                   ? "border-brand bg-brand text-white hover:opacity-90"
                   : "cursor-not-allowed border-brand/20 text-brand/35",
@@ -271,18 +355,12 @@ export function CustomizerStudio() {
             >
               {adding ? "Adding…" : "Add custom tee to bag"}
             </button>
-            {!frontImage && !backImage ? (
-              <p className="mt-3 text-xs font-medium text-brand/50">
-                Upload at least one design to continue.
-              </p>
-            ) : null}
           </div>
         </div>
 
-        {/* Preview */}
         <div className="order-1 lg:order-2">
-          <div className="sticky top-28 space-y-6">
-            <div className="flex items-center justify-between border-b border-brand/10 pb-4">
+          <div className="lg:sticky lg:top-28 lg:space-y-6">
+            <div className="flex items-center justify-between border-b border-brand/10 pb-3 sm:pb-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand/50">
                 Live preview
               </p>
@@ -291,7 +369,7 @@ export function CustomizerStudio() {
                   <button
                     key={side}
                     type="button"
-                    onClick={() => setActiveView(side)}
+                    onClick={() => switchView(side)}
                     className={cn(
                       "px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors",
                       activeView === side
@@ -305,71 +383,90 @@ export function CustomizerStudio() {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-sm bg-[#0b0b0b] px-2 py-6 sm:px-6">
-              <TeePreview
-                key={activeView}
-                view={activeView}
-                colorHex={selectedColor.hex}
-                designUrl={currentDesign}
-                placement={currentPlacement}
-                printZone={printZones[activeView]}
-                onPlacementChange={setCurrentPlacement}
-              />
-            </div>
+            <TeePreview
+              key={activeView}
+              view={activeView}
+              colorHex={selectedColor.hex}
+              side={currentSide}
+              activeLayer={activeLayer}
+              onActiveLayerChange={setActiveLayer}
+              onImagePlacementChange={(imagePlacement) =>
+                setCurrentSide((current) => ({ ...current, imagePlacement }))
+              }
+              onTextPlacementChange={(placement) =>
+                setCurrentSide((current) =>
+                  current.text
+                    ? { ...current, text: { ...current.text, placement } }
+                    : current,
+                )
+              }
+              onRemoveImage={currentSide.image ? handleRemoveImage : undefined}
+              onRemoveText={
+                currentSide.text?.content.trim() ? handleRemoveText : undefined
+              }
+              className="w-full"
+            />
 
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setActiveView("front")}
-                className={cn(
-                  "overflow-hidden border p-3 text-left transition-colors",
-                  activeView === "front"
-                    ? "border-brand/40 bg-brand/[0.03]"
-                    : "border-brand/10 bg-brand/[0.02] hover:border-brand/25",
-                )}
-              >
-                <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-brand/45">
-                  Front {frontImage ? "· ready" : ""}
-                </p>
-                <div className="pointer-events-none mx-auto mt-1 h-36 max-w-[9rem] overflow-hidden">
-                  <TeePreview
-                    view="front"
-                    colorHex={selectedColor.hex}
-                    designUrl={frontImage}
-                    placement={frontPlacement}
-                    printZone={printZones.front}
-                    onPlacementChange={setFrontPlacement}
-                    interactive={false}
-                  />
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveView("back")}
-                className={cn(
-                  "overflow-hidden border p-3 text-left transition-colors",
-                  activeView === "back"
-                    ? "border-brand/40 bg-brand/[0.03]"
-                    : "border-brand/10 bg-brand/[0.02] hover:border-brand/25",
-                )}
-              >
-                <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-brand/45">
-                  Back {backImage ? "· ready" : ""}
-                </p>
-                <div className="pointer-events-none mx-auto mt-1 h-36 max-w-[9rem] overflow-hidden">
-                  <TeePreview
-                    view="back"
-                    colorHex={selectedColor.hex}
-                    designUrl={backImage}
-                    placement={backPlacement}
-                    printZone={printZones.back}
-                    onPlacementChange={setBackPlacement}
-                    interactive={false}
-                  />
-                </div>
-              </button>
+            <div className="hidden grid-cols-2 gap-4 lg:grid">
+              {(["front", "back"] as const).map((side) => {
+                const sideData = side === "front" ? front : back;
+                return (
+                  <button
+                    key={side}
+                    type="button"
+                    onClick={() => switchView(side)}
+                    className={cn(
+                      "overflow-hidden border p-3 text-left transition-colors",
+                      activeView === side
+                        ? "border-brand/40 bg-brand/[0.03]"
+                        : "border-brand/10 bg-brand/[0.02] hover:border-brand/25",
+                    )}
+                  >
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-brand/45">
+                      {side} {sideHasPrint(sideData) ? "· ready" : ""}
+                    </p>
+                    <div className="pointer-events-none mx-auto mt-1 h-36 max-w-[9rem] overflow-hidden">
+                      <TeePreview
+                        view={side}
+                        colorHex={selectedColor.hex}
+                        side={sideData}
+                        activeLayer={null}
+                        onImagePlacementChange={() => {}}
+                        onTextPlacementChange={() => {}}
+                        interactive={false}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-[var(--mobile-nav-height)] z-30 border-t border-brand/10 bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand/50">
+              Total
+            </p>
+            <p className="text-lg font-semibold text-brand">
+              {formatGhs(price * quantity)}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!canAdd || adding}
+            onClick={(event) => handleAddToBag(event.currentTarget)}
+            className={cn(
+              "shrink-0 border px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] transition-opacity",
+              canAdd && !adding
+                ? "border-brand bg-brand text-white hover:opacity-90"
+                : "cursor-not-allowed border-brand/20 text-brand/35",
+            )}
+          >
+            {adding ? "Adding…" : "Add to bag"}
+          </button>
         </div>
       </div>
     </div>

@@ -1,3 +1,6 @@
+import type { CustomTeeDesign } from "@/data/customizer";
+import { normalizeCustomTeeDesign } from "@/lib/customizer-migrate";
+
 const MAX_DIMENSION = 1200;
 const JPEG_QUALITY = 0.88;
 
@@ -7,7 +10,7 @@ export function validateDesignFile(file: File): string | null {
     return "Use PNG, JPG, WebP, or SVG.";
   }
   if (file.size > 8 * 1024 * 1024) {
-    return "File must be under 8MB.";
+    return "File must be under 8MB";
   }
   return null;
 }
@@ -22,10 +25,17 @@ export async function readFileAsDataUrl(file: File): Promise<string> {
     });
   }
 
-  return compressImageFile(file);
+  if (file.type === "image/jpeg") {
+    return compressImageFile(file, "image/jpeg");
+  }
+
+  return compressImageFile(file, "image/png");
 }
 
-async function compressImageFile(file: File): Promise<string> {
+async function compressImageFile(
+  file: File,
+  mime: "image/jpeg" | "image/png",
+): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(
     1,
@@ -42,43 +52,33 @@ async function compressImageFile(file: File): Promise<string> {
     throw new Error("Could not process image.");
   }
 
+  if (mime === "image/png") {
+    ctx.clearRect(0, 0, width, height);
+  }
+
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+  return mime === "image/png"
+    ? canvas.toDataURL("image/png")
+    : canvas.toDataURL("image/jpeg", JPEG_QUALITY);
 }
 
 export async function createCustomTeeThumbnail(
-  colorHex: string,
-  frontImage?: string | null,
+  design: CustomTeeDesign,
 ): Promise<string> {
   const canvas = document.createElement("canvas");
-  canvas.width = 400;
-  canvas.height = 480;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return "";
+  canvas.style.width = "400px";
+  canvas.style.height = "480px";
 
-  ctx.fillStyle = colorHex;
-  ctx.fillRect(120, 90, 160, 280);
+  const normalized = normalizeCustomTeeDesign(design);
+  const { renderTeeCanvas } = await import("@/lib/tee-canvas");
 
-  if (frontImage) {
-    const img = await loadImage(frontImage);
-    const maxW = 120;
-    const maxH = 140;
-    const scale = Math.min(maxW / img.width, maxH / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    ctx.drawImage(img, 200 - w / 2, 180, w, h);
-  }
-
-  return canvas.toDataURL("image/jpeg", 0.85);
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
+  await renderTeeCanvas(canvas, {
+    view: "front",
+    colorHex: normalized.colorHex,
+    side: normalized.front,
   });
+
+  return canvas.toDataURL("image/png", 0.92);
 }

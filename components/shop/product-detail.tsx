@@ -36,6 +36,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </h1>
             <WishlistButton
               productSlug={product.slug}
+              productName={product.name}
               className="shrink-0 lg:hidden"
             />
           </div>

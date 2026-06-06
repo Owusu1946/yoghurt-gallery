@@ -13,6 +13,7 @@ import {
   getReturnToFromSearchParam,
   setAuthReturnUrl,
 } from "@/lib/auth-return";
+import { toast } from "@/lib/toast";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -61,6 +62,7 @@ export function SignInForm() {
     const validation = validateSignIn(form);
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
+      toast.validationErrors(validation);
       return;
     }
 
@@ -69,13 +71,17 @@ export function SignInForm() {
 
     const user = await signIn(form);
     if (!user) {
-      setErrors({
-        form: "Incorrect email/phone or password. Try again or create an account.",
-      });
+      const message =
+        "Incorrect email/phone or password. Try again or create an account.";
+      setErrors({ form: message });
+      toast.error("Sign in failed", { description: message });
       setSubmitting(false);
       return;
     }
 
+    toast.success("Welcome back", {
+      description: `Signed in as ${user.fullName}`,
+    });
     router.replace(consumeAuthReturnUrl(returnTo));
   }
 

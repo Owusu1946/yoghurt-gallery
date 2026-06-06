@@ -16,6 +16,7 @@ export function ProductCard({ product }: ProductCardProps) {
     <div className="group relative">
       <WishlistButton
         productSlug={product.slug}
+        productName={product.name}
         className="absolute right-2 top-2 z-10 bg-white/90"
       />
       <Link href={`/shop/product/${product.slug}`} className="block">

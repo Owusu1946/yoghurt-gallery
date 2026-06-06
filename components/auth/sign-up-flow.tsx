@@ -20,6 +20,7 @@ import {
   setAuthReturnUrl,
 } from "@/lib/auth-return";
 import { cn } from "@/lib/cn";
+import { toast } from "@/lib/toast";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -77,6 +78,7 @@ export function SignUpFlow() {
     const validation = validateSignUp(form);
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
+      toast.validationErrors(validation);
       return;
     }
     setErrors({});
@@ -87,6 +89,18 @@ export function SignUpFlow() {
     setOtpSent(true);
     setStep("otp");
     setErrors({});
+    const destination =
+      otpChannel === "sms"
+        ? normalizePhone(form.phone).replace(/(\d{3})\d{4}(\d{3})/, "$1••••$2")
+        : (() => {
+            const email = normalizeEmail(form.email);
+            const [local, domain] = email.split("@");
+            if (!domain) return email;
+            return `${local.slice(0, 2)}•••@${domain}`;
+          })();
+    toast.info("Verification code sent", {
+      description: `Check ${otpChannel === "sms" ? "SMS at" : "email at"} ${destination}.`,
+    });
   }
 
   async function handleCompleteSignUp(event: React.FormEvent) {
@@ -94,10 +108,13 @@ export function SignUpFlow() {
     const otpErrors = validateOtpCode(otpCode);
     if (Object.keys(otpErrors).length > 0) {
       setErrors(otpErrors);
+      toast.validationErrors(otpErrors, "Invalid code");
       return;
     }
     if (!isOtpValid(otpCode)) {
-      setErrors({ otp: "Enter the 6-digit verification code." });
+      const message = "Enter the 6-digit verification code.";
+      setErrors({ otp: message });
+      toast.warning("Invalid code", { description: message });
       return;
     }
 
@@ -105,10 +122,15 @@ export function SignUpFlow() {
     setErrors({});
 
     try {
-      await signUp(form);
+      const user = await signUp(form);
+      toast.success("Account created", {
+        description: `Welcome, ${user.fullName}. You're all set.`,
+      });
       router.replace(consumeAuthReturnUrl(returnTo));
     } catch {
-      setErrors({ form: "Could not create your account. Try again." });
+      const message = "Could not create your account. Try again.";
+      setErrors({ form: message });
+      toast.error("Sign up failed", { description: message });
     } finally {
       setSubmitting(false);
     }

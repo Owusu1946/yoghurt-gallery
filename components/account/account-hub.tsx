@@ -2,6 +2,7 @@
 
 import { OrderHistory } from "@/components/account/order-history";
 import { useAuth } from "@/context/auth-context";
+import { toast } from "@/lib/toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -58,6 +59,9 @@ export function AccountHub() {
           type="button"
           onClick={() => {
             signOut();
+            toast.info("Signed out", {
+              description: "See you again soon.",
+            });
             router.push("/account/sign-in");
           }}
           className="border border-brand/25 px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.24em] text-brand transition-colors hover:border-brand"

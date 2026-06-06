@@ -4,6 +4,7 @@ import { CartLineItem } from "@/components/cart/cart-line-item";
 import { useCart } from "@/context/cart-context";
 import { formatGhs } from "@/lib/format-ghs";
 import { cn } from "@/lib/cn";
+import { toast } from "@/lib/toast";
 import Link from "next/link";
 
 type CartContentsProps = {
@@ -18,6 +19,21 @@ export function CartContents({ variant = "page", onClose }: CartContentsProps) {
     (sum, line) => sum + line.priceGhs * line.quantity,
     0,
   );
+
+  function handleRemoveLine(lineId: string) {
+    const line = items.find((item) => item.lineId === lineId);
+    removeLine(lineId);
+    toast.info("Removed from bag", {
+      description: line?.name ?? "Item removed.",
+    });
+  }
+
+  function handleClearCart() {
+    clearCart();
+    toast.info("Bag cleared", {
+      description: "All items have been removed.",
+    });
+  }
 
   if (!hydrated) {
     return null;
@@ -40,7 +56,7 @@ export function CartContents({ variant = "page", onClose }: CartContentsProps) {
           {items.length > 0 ? (
             <button
               type="button"
-              onClick={clearCart}
+              onClick={handleClearCart}
               className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand/50 transition-opacity hover:text-brand"
             >
               Clear bag
@@ -82,7 +98,7 @@ export function CartContents({ variant = "page", onClose }: CartContentsProps) {
             <div className="flex shrink-0 items-center justify-end border-t border-brand/10 px-6 pt-4">
               <button
                 type="button"
-                onClick={clearCart}
+                onClick={handleClearCart}
                 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand/50 transition-opacity hover:text-brand"
               >
                 Clear bag
@@ -102,7 +118,7 @@ export function CartContents({ variant = "page", onClose }: CartContentsProps) {
               <CartLineItem
                 key={line.lineId}
                 line={line}
-                onRemove={removeLine}
+                onRemove={handleRemoveLine}
               />
             ))}
           </ul>

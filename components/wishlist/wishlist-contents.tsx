@@ -4,6 +4,7 @@ import { useWishlist } from "@/context/wishlist-context";
 import { getProductBySlug } from "@/data/products";
 import { formatGhs } from "@/lib/format-ghs";
 import { cn } from "@/lib/cn";
+import { toast } from "@/lib/toast";
 import { X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -85,6 +86,21 @@ export function WishlistContents({
     [slugs],
   );
 
+  function handleRemoveItem(slug: string) {
+    const product = getProductBySlug(slug);
+    removeItem(slug);
+    toast.info("Removed from wishlist", {
+      description: product?.name ?? "Item removed.",
+    });
+  }
+
+  function handleClearWishlist() {
+    clearWishlist();
+    toast.info("Wishlist cleared", {
+      description: "All saved items have been removed.",
+    });
+  }
+
   if (!hydrated) {
     return null;
   }
@@ -106,7 +122,7 @@ export function WishlistContents({
           {validSlugs.length > 0 ? (
             <button
               type="button"
-              onClick={clearWishlist}
+              onClick={handleClearWishlist}
               className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand/50 transition-opacity hover:text-brand"
             >
               Clear wishlist
@@ -150,7 +166,7 @@ export function WishlistContents({
             <div className="flex shrink-0 items-center justify-end border-t border-brand/10 px-6 pt-4">
               <button
                 type="button"
-                onClick={clearWishlist}
+                onClick={handleClearWishlist}
                 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand/50 transition-opacity hover:text-brand"
               >
                 Clear wishlist
@@ -170,7 +186,7 @@ export function WishlistContents({
               <WishlistLineItem
                 key={slug}
                 slug={slug}
-                onRemove={removeItem}
+                onRemove={handleRemoveItem}
                 onNavigate={onClose}
               />
             ))}

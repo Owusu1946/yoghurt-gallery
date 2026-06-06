@@ -1,6 +1,9 @@
+"use client";
+
 import type { CustomTeeSide } from "@/data/customizer";
 import { teeMockupAssets } from "@/data/customizer-mockups";
 import Image from "next/image";
+import { useState } from "react";
 
 type TeeMockupImageProps = {
   view: CustomTeeSide;
@@ -8,6 +11,8 @@ type TeeMockupImageProps = {
 };
 
 export function TeeMockupImage({ view, className }: TeeMockupImageProps) {
+  const [backFallback, setBackFallback] = useState(false);
+
   if (view === "front") {
     return (
       <div className={className}>
@@ -18,6 +23,21 @@ export function TeeMockupImage({ view, className }: TeeMockupImageProps) {
           priority
           sizes="(max-width: 768px) 100vw, 480px"
           className="object-contain object-center"
+        />
+      </div>
+    );
+  }
+
+  if (!backFallback) {
+    return (
+      <div className={className}>
+        <Image
+          src={teeMockupAssets.back}
+          alt=""
+          fill
+          sizes="(max-width: 768px) 100vw, 480px"
+          className="object-contain object-center"
+          onError={() => setBackFallback(true)}
         />
       </div>
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import { authFieldClass, authLabelClass } from "@/components/auth/form-styles";
+import { toast } from "@/lib/toast";
 import { useState } from "react";
 
 const subjects = [
@@ -21,7 +22,21 @@ export function ContactForm() {
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!name.trim() || !message.trim()) return;
+    if (!name.trim()) {
+      toast.warning("Name required", {
+        description: "Enter your name so we know who to reply to.",
+      });
+      return;
+    }
+    if (!message.trim()) {
+      toast.warning("Message required", {
+        description: "Tell us how we can help.",
+      });
+      return;
+    }
+    toast.success("Message sent", {
+      description: `Thanks, ${name.trim()}. We'll get back to you soon.`,
+    });
     setSubmitted(true);
   }
 

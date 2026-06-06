@@ -1,4 +1,6 @@
 import type { CartLine } from "@/context/cart-context";
+import { normalizeCustomTeeDesign } from "@/lib/customizer-migrate";
+import { sideHasPrint } from "@/data/customizer";
 import { formatGhs } from "@/lib/format-ghs";
 import { cn } from "@/lib/cn";
 import { X } from "lucide-react";
@@ -20,12 +22,13 @@ export function CartLineItem({
   const lineTotal = line.priceGhs * line.quantity;
 
   const customLabel = line.customTee
-    ? [
-        line.customTee.frontImage ? "Front print" : null,
-        line.customTee.backImage ? "Back print" : null,
-      ]
-        .filter(Boolean)
-        .join(" · ")
+    ? (() => {
+        const design = normalizeCustomTeeDesign(line.customTee);
+        const parts: string[] = [];
+        if (sideHasPrint(design.front)) parts.push("Front print");
+        if (sideHasPrint(design.back)) parts.push("Back print");
+        return parts.join(" · ");
+      })()
     : null;
 
   return (

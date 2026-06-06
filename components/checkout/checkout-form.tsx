@@ -28,6 +28,7 @@ import {
   writeStorage,
 } from "@/lib/storage";
 import { cn } from "@/lib/cn";
+import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -100,9 +101,19 @@ export function CheckoutForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting || items.length === 0) return;
+    if (submitting) return;
+
+    if (items.length === 0) {
+      toast.warning("Your bag is empty", {
+        description: "Add items before checking out.",
+      });
+      return;
+    }
 
     if (!isAuthenticated) {
+      toast.info("Account required", {
+        description: "Create an account or sign in to place your order.",
+      });
       redirectToSignUp();
       return;
     }
@@ -115,12 +126,15 @@ export function CheckoutForm() {
 
       if (!result.ok) {
         setErrors(result.errors);
+        toast.validationErrors(result.errors, "Check delivery details");
         return;
       }
 
       const customer = buildOrderCustomer(form);
       if (!customer) {
-        setErrors({ form: "Please check your details and try again." });
+        const message = "Please check your details and try again.";
+        setErrors({ form: message });
+        toast.error("Could not place order", { description: message });
         return;
       }
 
@@ -135,9 +149,9 @@ export function CheckoutForm() {
         `/checkout/confirmation?ref=${encodeURIComponent(result.orderId)}`,
       );
     } catch {
-      setErrors({
-        form: "Something went wrong. Please try again in a moment.",
-      });
+      const message = "Something went wrong. Please try again in a moment.";
+      setErrors({ form: message });
+      toast.error("Order failed", { description: message });
     } finally {
       setSubmitting(false);
     }

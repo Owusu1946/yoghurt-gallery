@@ -1,5 +1,6 @@
 import { mainNavLinks } from "@/data/navigation";
 import Link from "next/link";
+import { Logo } from "./logo";
 import { NavbarActions } from "./navbar-actions";
 import { NavbarMobile } from "./navbar-mobile";
 
@@ -20,13 +21,20 @@ export function Navbar() {
 
           <Link
             href="/"
-            className="group absolute left-1/2 hidden -translate-x-1/2 flex-col items-center text-center lg:flex"
+            className="group absolute left-1/2 hidden -translate-x-1/2 items-center gap-2.5 transition-opacity hover:opacity-85 sm:gap-3 lg:flex"
           >
-            <span className="font-display text-lg font-normal uppercase tracking-[0.32em] text-brand sm:text-xl lg:text-2xl">
-              Yoghurt
-            </span>
-            <span className="mt-1 text-[9px] font-normal uppercase tracking-[0.42em] text-brand/70 sm:text-[10px]">
-              Clothing Gallery
+            <Logo
+              className="block aspect-square h-[2.2rem] w-[2.2rem] shrink-0 sm:h-[2.4rem] sm:w-[2.4rem] lg:h-[2.7rem] lg:w-[2.7rem]"
+              priority
+              decorative
+            />
+            <span className="flex flex-col items-start text-left leading-none">
+              <span className="font-display text-lg font-normal uppercase tracking-[0.32em] text-brand sm:text-xl lg:text-2xl">
+                Yoghurt
+              </span>
+              <span className="mt-1 text-[9px] font-normal uppercase tracking-[0.42em] text-brand/70 sm:text-[10px]">
+                Clothing Gallery
+              </span>
             </span>
           </Link>
 
