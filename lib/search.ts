@@ -1,5 +1,5 @@
 import { mainNavLinks, shopLinks } from "@/data/navigation";
-import { allProducts, categoryMeta, type Product } from "@/data/products";
+import { categoryMeta, type Product } from "@/data/products";
 import { shopFilters } from "@/data/shop-filters";
 
 export type SearchLinkResult = {
@@ -47,7 +47,7 @@ function matchesQuery(text: string, query: string): boolean {
 
 export function searchCatalog(
   query: string,
-  catalog: Product[] = allProducts,
+  catalog: Product[] = [],
 ): SearchResult {
   const q = query.trim().toLowerCase();
   if (q.length < 2) {

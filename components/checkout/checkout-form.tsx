@@ -129,7 +129,7 @@ export function CheckoutForm() {
     setErrors({});
 
     try {
-      const result = await submitOrder(form, items.length);
+      const result = await submitOrder(form, items);
 
       if (!result.ok) {
         setErrors(result.errors);

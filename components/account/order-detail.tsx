@@ -13,6 +13,9 @@ import {
   type LegacyOrderCustomer,
   type StoredOrder,
 } from "@/lib/orders";
+import { getUserOrderFromDb } from "@/app/actions/user-orders";
+import { createBrowserClient } from "@supabase/ssr";
+import type { OrderStatus } from "@/data/order-status";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -50,7 +53,7 @@ function DeliveryBlock({ customer }: { customer: LegacyOrderCustomer }) {
 export function OrderDetail({ orderId }: OrderDetailProps) {
   const router = useRouter();
   const { user, isAuthenticated, hydrated } = useAuth();
-  const [order, setOrder] = useState<StoredOrder | null>(null);
+  const [order, setOrder] = useState<any>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -59,13 +62,37 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
       router.replace("/account/sign-in");
       return;
     }
-    function refresh() {
-      setOrder(getUserOrder(user!.id, decodeURIComponent(orderId)));
+
+    async function loadData() {
+      const dbOrder = await getUserOrderFromDb(user!.id, decodeURIComponent(orderId));
+      setOrder(dbOrder);
       setReady(true);
     }
-    refresh();
-    window.addEventListener("yoghurt-admin-order-status", refresh);
-    return () => window.removeEventListener("yoghurt-admin-order-status", refresh);
+    
+    loadData();
+
+    // Supabase Realtime Subscription for user's order
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const channel = supabase
+      .channel(`user-order-${orderId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `id=eq.${decodeURIComponent(orderId)}` },
+        (payload) => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    window.addEventListener("yoghurt-admin-order-status", loadData);
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("yoghurt-admin-order-status", loadData);
+    };
   }, [hydrated, isAuthenticated, user, orderId, router]);
 
   if (!ready || !user) {
@@ -98,7 +125,7 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
     );
   }
 
-  const status = getEffectiveOrderStatus(order.id, order.createdAt);
+  const status = order.status;
 
   return (
     <div className="page-shell mx-auto max-w-lg px-4 py-6 pb-24 sm:px-6 lg:py-10">
@@ -124,7 +151,7 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
           Status ·{" "}
         </span>
         <span className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
-          {orderStatusLabels[status]}
+          {orderStatusLabels[status as keyof typeof orderStatusLabels] || status}
         </span>
       </div>
 
@@ -159,7 +186,7 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
           Items
         </h2>
         <ul className="mt-4 divide-y divide-brand/10 border-t border-brand/10">
-          {order.lines.map((line) => (
+          {(order.lines as any[]).map((line) => (
             <CartLineItem key={line.lineId} line={line} compact />
           ))}
         </ul>

@@ -13,14 +13,14 @@ type OtpInputProps = {
 
 export function OtpInput({ value, onChange, error, disabled }: OtpInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const digits = value.padEnd(6, " ").slice(0, 6).split("");
+  const digits = value.padEnd(8, " ").slice(0, 8).split("");
 
   function updateDigit(index: number, char: string) {
     const digit = char.replace(/\D/g, "").slice(-1);
     const next = digits.map((d, i) => (i === index ? digit : d.trim())).join("");
-    onChange(next.replace(/\s/g, "").slice(0, 6));
+    onChange(next.replace(/\s/g, "").slice(0, 8));
 
-    if (digit && index < 5) {
+    if (digit && index < 7) {
       inputRefs.current[index + 1]?.focus();
     }
   }
@@ -39,9 +39,9 @@ export function OtpInput({ value, onChange, error, disabled }: OtpInputProps) {
     const pasted = event.clipboardData
       .getData("text")
       .replace(/\D/g, "")
-      .slice(0, 6);
+      .slice(0, 8);
     onChange(pasted);
-    const focusIndex = Math.min(pasted.length, 5);
+    const focusIndex = Math.min(pasted.length, 7);
     inputRefs.current[focusIndex]?.focus();
   }
 

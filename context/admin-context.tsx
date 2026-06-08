@@ -1,11 +1,12 @@
 "use client";
 
 import {
-  authenticateAdmin,
   getAdminSession,
+  saveAdminSession,
   signOutAdmin,
   type AdminSession,
 } from "@/lib/admin-auth";
+import { loginAdmin } from "@/app/actions/admin-auth";
 import {
   createContext,
   useCallback,
@@ -35,9 +36,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const next = await authenticateAdmin(email, password);
-    if (!next) return false;
-    setSession(next);
+    const result = await loginAdmin(email, password);
+    if (!result.success || !result.admin) return false;
+
+    const newSession: AdminSession = {
+      id: result.admin.id,
+      email: result.admin.email,
+      name: result.admin.name,
+      signedInAt: new Date().toISOString(),
+    };
+    saveAdminSession(newSession);
+    setSession(newSession);
     return true;
   }, []);
 

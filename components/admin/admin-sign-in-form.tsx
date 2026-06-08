@@ -1,7 +1,6 @@
 "use client";
 
 import { useAdmin } from "@/context/admin-context";
-import { ADMIN_EMAIL } from "@/lib/admin-auth";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -14,7 +13,7 @@ const fieldClass =
 export function AdminSignInForm() {
   const { signIn } = useAdmin();
   const router = useRouter();
-  const [email, setEmail] = useState(ADMIN_EMAIL);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +44,7 @@ export function AdminSignInForm() {
           Sign in
         </h1>
         <p className="mt-3 text-sm text-brand/65">
-          Demo credentials: {ADMIN_EMAIL} / yoghurt-admin
+          Enter your admin credentials to continue.
         </p>
       </header>
 

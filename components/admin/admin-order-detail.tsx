@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminCustomTeePanel } from "@/components/admin/admin-custom-tee-panel";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { CartLineItem } from "@/components/cart/cart-line-item";
 import { OrderTracker } from "@/components/account/order-tracker";
@@ -8,7 +9,10 @@ import {
   orderTrackingSteps,
   type OrderStatus,
 } from "@/data/order-status";
-import { getAdminOrder } from "@/lib/admin-orders";
+import { getOrderFromDb, updateOrderStatusInDb } from "@/app/actions/admin-orders";
+import { createBrowserClient } from "@supabase/ssr";
+import type { OrderCustomer } from "@/lib/orders";
+import type { CartLine } from "@/context/cart-context";
 import {
   clearOrderStatusOverride,
   getEffectiveOrderStatus,
@@ -32,20 +36,42 @@ function formatOrderDate(iso: string): string {
 }
 
 export function AdminOrderDetail({ orderId }: AdminOrderDetailProps) {
-  const [status, setStatus] = useState<OrderStatus>("confirmed");
-  const [order, setOrder] = useState(() => getAdminOrder(decodeURIComponent(orderId)));
+  const [status, setStatus] = useState<string>("confirmed");
+  const [order, setOrder] = useState<any>(null);
 
   useEffect(() => {
-    function refresh() {
-      const next = getAdminOrder(decodeURIComponent(orderId));
-      setOrder(next);
-      if (next) {
-        setStatus(getEffectiveOrderStatus(next.id, next.createdAt));
+    async function loadData() {
+      const dbOrder = await getOrderFromDb(decodeURIComponent(orderId));
+      setOrder(dbOrder);
+      if (dbOrder) {
+        setStatus(dbOrder.status);
       }
     }
-    refresh();
-    window.addEventListener("yoghurt-admin-order-status", refresh);
-    return () => window.removeEventListener("yoghurt-admin-order-status", refresh);
+    
+    loadData();
+
+    // Supabase Realtime Subscription
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const channel = supabase
+      .channel(`admin-order-${orderId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `id=eq.${decodeURIComponent(orderId)}` },
+        (payload) => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    window.addEventListener("yoghurt-admin-order-status", loadData);
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("yoghurt-admin-order-status", loadData);
+    };
   }, [orderId]);
 
   if (!order) {
@@ -61,11 +87,12 @@ export function AdminOrderDetail({ orderId }: AdminOrderDetailProps) {
     );
   }
 
-  const delivery = formatCustomerDelivery(order.customer);
+  const customer = order.customer as OrderCustomer;
+  const delivery = formatCustomerDelivery(customer);
 
-  function updateStatus(next: OrderStatus) {
-    setOrderStatusOverride(order!.id, next);
+  async function updateStatus(next: string) {
     setStatus(next);
+    await updateOrderStatusInDb(order.id, next);
   }
 
   return (
@@ -77,14 +104,14 @@ export function AdminOrderDetail({ orderId }: AdminOrderDetailProps) {
         ← Orders
       </Link>
       <p className="mb-6 text-sm text-brand/60">
-        {order.customerName} · {order.id} · {formatOrderDate(order.createdAt)}
+        {customer.fullName} · {order.id} · {formatOrderDate(order.createdAt)}
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px] xl:grid-cols-[1fr_320px]">
         <div className="space-y-6">
           <section className="border border-brand/10 p-4 sm:p-5">
             <ul className="divide-y divide-brand/10">
-              {order.lines.map((line) => (
+              {(order.lines as CartLine[]).map((line) => (
                 <CartLineItem key={line.lineId} line={line} compact />
               ))}
             </ul>
@@ -96,22 +123,35 @@ export function AdminOrderDetail({ orderId }: AdminOrderDetailProps) {
             </div>
           </section>
 
+          {(order.lines as CartLine[])
+            .filter((line) => line.customTee)
+            .map((line) => (
+              <AdminCustomTeePanel
+                key={line.lineId}
+                lineId={line.lineId}
+                name={line.name}
+                size={line.size}
+                quantity={line.quantity}
+                design={line.customTee!}
+              />
+            ))}
+
           <section className="border border-brand/10 p-4 sm:p-5">
             <div className="space-y-2 text-sm text-brand/70">
               <p className="font-semibold text-brand">{delivery.summary}</p>
               {delivery.addressLines.map((line) => (
                 <p key={line}>{line}</p>
               ))}
-              {order.customer.landmark ? (
+              {customer.landmark ? (
                 <p>
                   <span className="text-brand/50">Landmark: </span>
-                  {order.customer.landmark}
+                  {customer.landmark}
                 </p>
               ) : null}
-              {order.customer.notes ? (
+              {customer.notes ? (
                 <p>
                   <span className="text-brand/50">Notes: </span>
-                  {order.customer.notes}
+                  {customer.notes}
                 </p>
               ) : null}
             </div>
@@ -121,15 +161,15 @@ export function AdminOrderDetail({ orderId }: AdminOrderDetailProps) {
             <dl className="space-y-2 text-sm text-brand/70">
               <div>
                 <dt className="text-brand/50">Name</dt>
-                <dd className="font-medium text-brand">{order.customer.fullName}</dd>
+                <dd className="font-medium text-brand">{customer.fullName}</dd>
               </div>
               <div>
                 <dt className="text-brand/50">Phone</dt>
-                <dd>{order.customer.phone}</dd>
+                <dd>{customer.phone}</dd>
               </div>
               <div>
                 <dt className="text-brand/50">Email</dt>
-                <dd>{order.customer.email}</dd>
+                <dd>{customer.email}</dd>
               </div>
               <div>
                 <dt className="text-brand/50">Payment</dt>
@@ -161,17 +201,16 @@ export function AdminOrderDetail({ orderId }: AdminOrderDetailProps) {
             <button
               type="button"
               onClick={() => {
-                clearOrderStatusOverride(order.id);
-                setStatus(getEffectiveOrderStatus(order.id, order.createdAt));
+                setStatus(order.status);
               }}
               className="mt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand/45 hover:text-brand"
             >
-              Reset to auto timeline
+              Reset to DB Status
             </button>
           </section>
 
           <section className="border border-brand/10 p-4 sm:p-5">
-            <OrderTracker createdAt={order.createdAt} status={status} />
+            <OrderTracker createdAt={order.createdAt} status={status as OrderStatus} />
           </section>
         </aside>
       </div>

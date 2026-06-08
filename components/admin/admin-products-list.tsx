@@ -7,6 +7,7 @@ import {
   getCatalogProducts,
   hideCatalogProduct,
   isAdminAddedProduct,
+  isCatalogLoaded,
   isProductHidden,
   subscribeCatalog,
 } from "@/lib/product-catalog";
@@ -18,10 +19,12 @@ import { useEffect, useState } from "react";
 
 export function AdminProductsList() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loaded, setLoaded] = useState(isCatalogLoaded());
 
   useEffect(() => {
     function refresh() {
       setProducts(getCatalogProducts());
+      setLoaded(isCatalogLoaded());
     }
     refresh();
     return subscribeCatalog(refresh);
@@ -45,7 +48,19 @@ export function AdminProductsList() {
       }
     >
       <div className="border border-brand/10">
-        {products.length === 0 ? (
+        {!loaded ? (
+          <ul className="divide-y divide-brand/10">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <li key={i} className="flex items-center gap-4 px-4 py-4 sm:px-5">
+                <div className="h-16 w-16 shrink-0 animate-pulse bg-brand/5" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-1/3 animate-pulse bg-brand/10" />
+                  <div className="h-3 w-1/4 animate-pulse bg-brand/5" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : products.length === 0 ? (
           <p className="px-4 py-12 text-center text-sm text-brand/55">
             No products in catalog.
           </p>

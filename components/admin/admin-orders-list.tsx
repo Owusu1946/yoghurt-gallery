@@ -1,11 +1,16 @@
 "use client";
 
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAllOrders, type AdminOrderRow } from "@/lib/admin-orders";
+import { getAllOrdersFromDb } from "@/app/actions/admin-orders";
+import { createBrowserClient } from "@supabase/ssr";
+import { orderStatusLabels } from "@/data/order-status";
+import type { OrderCustomer } from "@/lib/orders";
+import type { CartLine } from "@/context/cart-context";
 import { formatGhs } from "@/lib/format-ghs";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 const filters = ["all", "active", "delivered"] as const;
 type OrderFilter = (typeof filters)[number];
@@ -18,33 +23,60 @@ function formatOrderDate(iso: string): string {
 }
 
 export function AdminOrdersList() {
-  const [orders, setOrders] = useState<AdminOrderRow[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [filter, setFilter] = useState<OrderFilter>("all");
   const [query, setQuery] = useState("");
+  const searchParams = useSearchParams();
+  const filterUserId = searchParams.get("userId");
 
   useEffect(() => {
-    function refresh() {
-      setOrders(getAllOrders());
+    async function loadData() {
+      const dbOrders = await getAllOrdersFromDb();
+      setOrders(dbOrders);
     }
-    refresh();
-    window.addEventListener("yoghurt-admin-order-status", refresh);
-    return () => window.removeEventListener("yoghurt-admin-order-status", refresh);
+    
+    loadData();
+
+    // Supabase Realtime Subscription
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const channel = supabase
+      .channel("admin-orders-list")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    window.addEventListener("yoghurt-admin-order-status", loadData);
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("yoghurt-admin-order-status", loadData);
+    };
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return orders.filter((order) => {
+      if (filterUserId && order.userId !== filterUserId) return false;
       if (filter === "active" && order.status === "delivered") return false;
       if (filter === "delivered" && order.status !== "delivered") return false;
       if (!q) return true;
+      const customer = order.customer as OrderCustomer;
       return (
         order.id.toLowerCase().includes(q) ||
-        order.customerName.toLowerCase().includes(q) ||
-        order.customer.phone.includes(q) ||
-        order.customer.email.toLowerCase().includes(q)
+        customer.fullName.toLowerCase().includes(q) ||
+        customer.phone.includes(q) ||
+        customer.email.toLowerCase().includes(q)
       );
     });
-  }, [orders, filter, query]);
+  }, [orders, filter, query, filterUserId]);
 
   return (
     <AdminShell>
@@ -82,7 +114,10 @@ export function AdminOrdersList() {
           </p>
         ) : (
           <ul className="divide-y divide-brand/10">
-            {filtered.map((order) => (
+            {filtered.map((order) => {
+              const customer = order.customer as OrderCustomer;
+              const lines = order.lines as CartLine[];
+              return (
               <li key={order.id}>
                 <Link
                   href={`/admin/orders/${encodeURIComponent(order.id)}`}
@@ -91,18 +126,19 @@ export function AdminOrdersList() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-brand">
-                        {order.customerName}
+                        {customer.fullName}
                       </p>
                       <p className="mt-1 text-xs text-brand/50">
                         {formatOrderDate(order.createdAt)} · {order.id}
+                        {lines.some((line) => line.customTee) ? " · Custom" : ""}
                       </p>
                       <p className="mt-2 text-xs text-brand/60">
-                        {order.customer.phone} · {order.customer.deliverySummary}
+                        {customer.phone} · {customer.deliverySummary}
                       </p>
                     </div>
                     <div className="flex items-center gap-4 sm:flex-col sm:items-end">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand/55">
-                        {order.statusLabel}
+                        {orderStatusLabels[order.status as keyof typeof orderStatusLabels] || order.status}
                       </span>
                       <span className="text-sm font-semibold text-brand">
                         {formatGhs(order.subtotal)}
@@ -111,7 +147,7 @@ export function AdminOrdersList() {
                   </div>
                 </Link>
               </li>
-            ))}
+            )})}
           </ul>
         )}
       </div>

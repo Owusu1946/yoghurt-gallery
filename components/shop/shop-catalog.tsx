@@ -4,6 +4,7 @@ import { categoryMeta } from "@/data/products";
 import {
   getCatalogProducts,
   getCatalogProductsByCategory,
+  isCatalogLoaded,
   subscribeCatalog,
 } from "@/lib/product-catalog";
 import {
@@ -16,6 +17,7 @@ import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProductGrid } from "./product-grid";
+import { ProductGridSkeleton } from "./product-grid-skeleton";
 
 type ShopCatalogProps = {
   initialFilter?: ShopFilterId;
@@ -49,8 +51,12 @@ function FilterButton({
 export function ShopCatalog({ initialFilter = "all" }: ShopCatalogProps) {
   const [activeFilter, setActiveFilter] = useState<ShopFilterId>(initialFilter);
   const [catalogVersion, setCatalogVersion] = useState(0);
+  const [loaded, setLoaded] = useState(isCatalogLoaded());
 
-  useEffect(() => subscribeCatalog(() => setCatalogVersion((v) => v + 1)), []);
+  useEffect(() => subscribeCatalog(() => {
+    setCatalogVersion((v) => v + 1);
+    setLoaded(isCatalogLoaded());
+  }), []);
 
   const products = useMemo(() => {
     void catalogVersion;
@@ -176,7 +182,7 @@ export function ShopCatalog({ initialFilter = "all" }: ShopCatalogProps) {
           ) : null}
         </header>
 
-        <ProductGrid products={products} />
+        {loaded ? <ProductGrid products={products} /> : <ProductGridSkeleton />}
       </div>
     </div>
   );

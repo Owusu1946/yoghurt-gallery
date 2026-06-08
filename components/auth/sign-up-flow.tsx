@@ -39,7 +39,7 @@ export function SignUpFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = getReturnToFromSearchParam(searchParams.get("returnTo"));
-  const { signUp, isAuthenticated, hydrated } = useAuth();
+  const { signUp, verifyOtp, isAuthenticated, hydrated } = useAuth();
 
   useEffect(() => {
     if (returnTo !== "/") {
@@ -85,22 +85,35 @@ export function SignUpFlow() {
     setStep("verify");
   }
 
-  function handleSendOtp() {
-    setOtpSent(true);
-    setStep("otp");
+  async function handleSendOtp() {
     setErrors({});
-    const destination =
-      otpChannel === "sms"
-        ? normalizePhone(form.phone).replace(/(\d{3})\d{4}(\d{3})/, "$1••••$2")
-        : (() => {
-            const email = normalizeEmail(form.email);
-            const [local, domain] = email.split("@");
-            if (!domain) return email;
-            return `${local.slice(0, 2)}•••@${domain}`;
-          })();
-    toast.info("Verification code sent", {
-      description: `Check ${otpChannel === "sms" ? "SMS at" : "email at"} ${destination}.`,
-    });
+    setSubmitting(true);
+
+    try {
+      if (otpChannel === "email") {
+        await signUp(form);
+      }
+      // For SMS, we just maintain the UI mock for now as requested
+      setOtpSent(true);
+      setStep("otp");
+      
+      const destination =
+        otpChannel === "sms"
+          ? normalizePhone(form.phone).replace(/(\d{3})\d{4}(\d{3})/, "$1••••$2")
+          : (() => {
+              const email = normalizeEmail(form.email);
+              const [local, domain] = email.split("@");
+              if (!domain) return email;
+              return `${local.slice(0, 2)}•••@${domain}`;
+            })();
+      toast.info("Verification code sent", {
+        description: `Check ${otpChannel === "sms" ? "SMS at" : "email at"} ${destination}.`,
+      });
+    } catch (err: any) {
+      toast.error("Failed to send code", { description: err.message });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleCompleteSignUp(event: React.FormEvent) {
@@ -111,8 +124,10 @@ export function SignUpFlow() {
       toast.validationErrors(otpErrors, "Invalid code");
       return;
     }
-    if (!isOtpValid(otpCode)) {
-      const message = "Enter the 6-digit verification code.";
+    
+    // For SMS mock
+    if (otpChannel === "sms" && !isOtpValid(otpCode)) {
+      const message = "Enter the 8-digit verification code.";
       setErrors({ otp: message });
       toast.warning("Invalid code", { description: message });
       return;
@@ -122,15 +137,22 @@ export function SignUpFlow() {
     setErrors({});
 
     try {
-      const user = await signUp(form);
+      let user;
+      if (otpChannel === "email") {
+        user = await verifyOtp(form.email, otpCode);
+      } else {
+        // Fallback for SMS mock
+        user = await signUp(form); 
+      }
+      
       toast.success("Account created", {
-        description: `Welcome, ${user.fullName}. You're all set.`,
+        description: `Welcome, ${user?.fullName || form.fullName}. You're all set.`,
       });
       router.replace(consumeAuthReturnUrl(returnTo));
-    } catch {
-      const message = "Could not create your account. Try again.";
+    } catch (err: any) {
+      const message = err.message || "Could not create your account. Try again.";
       setErrors({ form: message });
-      toast.error("Sign up failed", { description: message });
+      toast.error("Verification failed", { description: message });
     } finally {
       setSubmitting(false);
     }
@@ -321,8 +343,8 @@ export function SignUpFlow() {
           </div>
 
           <p className="text-xs leading-relaxed text-brand/50">
-            We will send a 6-digit code to your {otpChannel === "sms" ? "phone" : "email"}.
-            OTP delivery is simulated for now — any 6-digit code works on the next step.
+            We will send an 8-digit code to your {otpChannel === "sms" ? "phone" : "email"}.
+            OTP delivery is simulated for now — any 8-digit code works on the next step.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -362,7 +384,7 @@ export function SignUpFlow() {
           />
 
           <p className="rounded-sm border border-brand/10 bg-brand/[0.03] px-4 py-3 text-xs leading-relaxed text-brand/55">
-            Demo: SMS/email OTP is not connected yet. Enter any 6 digits to
+            Demo: SMS/email OTP is not connected yet. Enter any 8 digits to
             finish creating your account.
           </p>
 

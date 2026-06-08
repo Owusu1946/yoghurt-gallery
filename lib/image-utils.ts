@@ -1,16 +1,21 @@
 import type { CustomTeeDesign } from "@/data/customizer";
 import { normalizeCustomTeeDesign } from "@/lib/customizer-migrate";
 
-const MAX_DIMENSION = 1200;
-const JPEG_QUALITY = 0.88;
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+const ALLOWED_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml",
+] as const;
 
 export function validateDesignFile(file: File): string | null {
-  const allowed = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
-  if (!allowed.includes(file.type)) {
+  if (!ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number])) {
     return "Use PNG, JPG, WebP, or SVG.";
   }
-  if (file.size > 8 * 1024 * 1024) {
-    return "File must be under 8MB";
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return "File must be under 50MB";
   }
   return null;
 }
@@ -31,6 +36,9 @@ export async function readFileAsDataUrl(file: File): Promise<string> {
 
   return compressImageFile(file, "image/png");
 }
+
+const MAX_DIMENSION = 1200;
+const JPEG_QUALITY = 0.88;
 
 async function compressImageFile(
   file: File,
@@ -67,18 +75,6 @@ async function compressImageFile(
 export async function createCustomTeeThumbnail(
   design: CustomTeeDesign,
 ): Promise<string> {
-  const canvas = document.createElement("canvas");
-  canvas.style.width = "400px";
-  canvas.style.height = "480px";
-
-  const normalized = normalizeCustomTeeDesign(design);
-  const { renderTeeCanvas } = await import("@/lib/tee-canvas");
-
-  await renderTeeCanvas(canvas, {
-    view: "front",
-    colorHex: normalized.colorHex,
-    side: normalized.front,
-  });
-
-  return canvas.toDataURL("image/png", 0.92);
+  const { renderCustomTeePreview } = await import("@/lib/custom-tee-assets");
+  return renderCustomTeePreview(design, "front");
 }

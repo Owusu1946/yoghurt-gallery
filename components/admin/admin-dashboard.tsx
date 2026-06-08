@@ -10,31 +10,71 @@ import { orderStatusLabels } from "@/data/order-status";
 import { Package, Palette, ShoppingBag, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
+import { getAllOrdersFromDb } from "@/app/actions/admin-orders";
+import type { OrderCustomer } from "@/lib/orders";
+import type { CartLine } from "@/context/cart-context";
 
 export function AdminDashboard() {
-  const [stats, setStats] = useState(() => ({
-    ...getOrderStats(),
-    products: getCatalogProducts().length,
-    customers: getAllCustomers().length,
-    recentOrders: getAllOrders().slice(0, 5),
-  }));
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    revenue: 0,
+    pending: 0,
+    customLines: 0,
+    products: 0,
+    customers: 0,
+    recentOrders: [] as any[],
+  });
 
   useEffect(() => {
-    function refresh() {
+    async function loadData() {
+      const orders = await getAllOrdersFromDb();
+      
+      const revenue = orders.reduce((sum, order) => sum + order.subtotal, 0);
+      const pending = orders.filter((order) => order.status !== "delivered").length;
+      const customLines = orders.reduce(
+        (sum, order) =>
+          sum + (order.lines as CartLine[]).filter((line) => line.customTee !== undefined).length,
+        0,
+      );
+
       setStats({
-        ...getOrderStats(),
+        totalOrders: orders.length,
+        revenue,
+        pending,
+        customLines,
         products: getCatalogProducts().length,
         customers: getAllCustomers().length,
-        recentOrders: getAllOrders().slice(0, 5),
+        recentOrders: orders.slice(0, 5),
       });
     }
 
-    refresh();
-    window.addEventListener("yoghurt-admin-order-status", refresh);
-    window.addEventListener("yoghurt-catalog-updated", refresh);
+    loadData();
+
+    // Supabase Realtime Subscription
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const channel = supabase
+      .channel("admin-orders")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          loadData(); // Re-fetch on insert to get full updated list
+        }
+      )
+      .subscribe();
+
+    window.addEventListener("yoghurt-admin-order-status", loadData);
+    window.addEventListener("yoghurt-catalog-updated", loadData);
+
     return () => {
-      window.removeEventListener("yoghurt-admin-order-status", refresh);
-      window.removeEventListener("yoghurt-catalog-updated", refresh);
+      supabase.removeChannel(channel);
+      window.removeEventListener("yoghurt-admin-order-status", loadData);
+      window.removeEventListener("yoghurt-catalog-updated", loadData);
     };
   }, []);
 
@@ -83,7 +123,10 @@ export function AdminDashboard() {
           </p>
         ) : (
           <ul className="divide-y divide-brand/10">
-            {stats.recentOrders.map((order) => (
+            {stats.recentOrders.map((order) => {
+              const customer = order.customer as OrderCustomer;
+              const lines = order.lines as CartLine[];
+              return (
               <li key={order.id}>
                 <Link
                   href={`/admin/orders/${encodeURIComponent(order.id)}`}
@@ -91,16 +134,17 @@ export function AdminDashboard() {
                 >
                   <div>
                     <p className="text-sm font-semibold text-brand">
-                      {order.customerName}
+                      {customer.fullName}
                     </p>
                     <p className="mt-1 text-xs text-brand/50">
-                      {order.id} · {order.lines.length} item
-                      {order.lines.length === 1 ? "" : "s"}
+                      {order.id} · {lines.length} item
+                      {lines.length === 1 ? "" : "s"}
+                      {lines.some((line) => line.customTee) ? " · Custom" : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand/55">
-                      {orderStatusLabels[order.status]}
+                      {orderStatusLabels[order.status as keyof typeof orderStatusLabels] || order.status}
                     </span>
                     <span className="text-sm font-semibold text-brand">
                       {formatGhs(order.subtotal)}
@@ -108,7 +152,7 @@ export function AdminDashboard() {
                   </div>
                 </Link>
               </li>
-            ))}
+            )})}
           </ul>
         )}
       </section>

@@ -10,15 +10,57 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   const cached = mockupCache.get(src);
   if (cached?.complete) return Promise.resolve(cached);
 
+  const isRemote = src.startsWith("http://") || src.startsWith("https://");
+
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (isRemote) {
+      img.crossOrigin = "anonymous";
+    }
+
     img.onload = () => {
       mockupCache.set(src, img);
       resolve(img);
     };
-    img.onerror = reject;
-    img.src = src;
+
+    img.onerror = () => {
+      if (isRemote) {
+        // Fallback: fetch as a blob, convert to object URL, and load it.
+        // This is extremely robust and avoids the CORS cache-poisoning issue in the browser.
+        fetch(src, { cache: "no-cache" })
+          .then((res) => {
+            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+            return res.blob();
+          })
+          .then((blob) => {
+            const blobUrl = URL.createObjectURL(blob);
+            const retryImg = new Image();
+            retryImg.onload = () => {
+              mockupCache.set(src, retryImg);
+              resolve(retryImg);
+              // Clean up the object URL after image loads
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            };
+            retryImg.onerror = () => {
+              reject(new Error(`Failed to load blob image from ${blobUrl}`));
+            };
+            retryImg.src = blobUrl;
+          })
+          .catch((err: Error) => {
+            reject(new Error(`Failed to load remote image: ${src}. ${err.message}`));
+          });
+      } else {
+        reject(new Error(`Failed to load image: ${src}`));
+      }
+    };
+
+    // If remote, let's append cache-bypass to avoid standard non-CORS cache entry.
+    if (isRemote && !src.includes("cache-bypass")) {
+      const delimiter = src.includes("?") ? "&" : "?";
+      img.src = `${src}${delimiter}cache-bypass=${Date.now()}`;
+    } else {
+      img.src = src;
+    }
   });
 }
 
@@ -222,8 +264,12 @@ export async function renderTeeCanvas(
   );
 
   if (options.side.image) {
-    const image = await loadImage(options.side.image);
-    drawImageLayer(ctx, image, options.side.imagePlacement, bounds);
+    try {
+      const image = await loadImage(options.side.image);
+      drawImageLayer(ctx, image, options.side.imagePlacement, bounds);
+    } catch (err) {
+      console.error("Failed to load/draw side design image:", options.side.image, err);
+    }
   }
 
   if (options.side.text?.content.trim()) {

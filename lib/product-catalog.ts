@@ -4,6 +4,7 @@ import {
   type ProductCategory,
 } from "@/data/products";
 import { ADMIN_PRODUCTS_KEY, readStorage, writeStorage } from "@/lib/storage";
+import { getAllProductsFromDb, upsertProductInDb, setProductHiddenStatusInDb } from "@/app/actions/product-catalog";
 
 export type ProductPatch = Partial<Omit<Product, "slug">> & { slug: string };
 
@@ -16,6 +17,12 @@ type ProductCatalogRegistry = {
 
 const REGISTRY_VERSION = 1;
 const CATALOG_EVENT = "yoghurt-catalog-updated";
+
+let _isCatalogLoaded = false;
+
+export function isCatalogLoaded() {
+  return _isCatalogLoaded;
+}
 
 function emptyRegistry(): ProductCatalogRegistry {
   return { version: REGISTRY_VERSION, added: [], updated: {}, hidden: [] };
@@ -90,6 +97,9 @@ export function saveAdminProduct(product: Product): void {
   }
 
   writeRegistry(registry);
+  
+  // Sync to relational DB
+  upsertProductInDb(product).catch(console.error);
 }
 
 export function hideCatalogProduct(slug: string): void {
@@ -100,12 +110,18 @@ export function hideCatalogProduct(slug: string): void {
   registry.added = registry.added.filter((product) => product.slug !== slug);
   delete registry.updated[slug];
   writeRegistry(registry);
+  
+  // Sync to relational DB
+  setProductHiddenStatusInDb(slug, true).catch(console.error);
 }
 
 export function restoreCatalogProduct(slug: string): void {
   const registry = readRegistry();
   registry.hidden = registry.hidden.filter((id) => id !== slug);
   writeRegistry(registry);
+  
+  // Sync to relational DB
+  setProductHiddenStatusInDb(slug, false).catch(console.error);
 }
 
 export function getCatalogRegistry(): ProductCatalogRegistry {
@@ -116,4 +132,20 @@ export function subscribeCatalog(listener: () => void): () => void {
   const handler = () => listener();
   window.addEventListener(CATALOG_EVENT, handler);
   return () => window.removeEventListener(CATALOG_EVENT, handler);
+}
+
+/**
+ * Fetches all products from the DB and creates a fresh registry.
+ * This ensures the client UI has the most up-to-date products without any page reloads.
+ */
+export async function initCatalogFromDb() {
+  const dbProducts = await getAllProductsFromDb();
+  if (dbProducts) {
+    const registry = emptyRegistry();
+    registry.added = dbProducts.filter((p) => !p.isHidden) as Product[];
+    registry.hidden = dbProducts.filter((p) => p.isHidden).map((p) => p.slug);
+    
+    _isCatalogLoaded = true;
+    writeRegistry(registry);
+  }
 }

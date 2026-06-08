@@ -16,11 +16,6 @@ import { PRODUCT_SIZES, type ProductSize } from "@/data/products";
 import { calculateCustomizerPrice } from "@/lib/customizer-pricing";
 import { subscribeAdminSettings } from "@/lib/admin-settings";
 import { formatGhs } from "@/lib/format-ghs";
-import {
-  createCustomTeeThumbnail,
-  readFileAsDataUrl,
-  validateDesignFile,
-} from "@/lib/image-utils";
 import { cn } from "@/lib/cn";
 import { toast } from "@/lib/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -74,29 +69,19 @@ export function CustomizerStudio() {
     setActiveLayer(null);
   }
 
-  async function handleUpload(file: File) {
-    const validationError = validateDesignFile(file);
-    if (validationError) {
-      setUploadError(validationError);
-      toast.error("Upload failed", { description: validationError });
+  function handleImageUploaded(url: string) {
+    if (!url) {
+      handleRemoveImage();
       return;
     }
-
-    try {
-      setUploadError(null);
-      const dataUrl = await readFileAsDataUrl(file);
-      setCurrentSide((current) => ({
-        ...current,
-        image: dataUrl,
-        imagePlacement: { ...defaultPlacement },
-      }));
-      setDesignTab("image");
-      setActiveLayer("image");
-    } catch {
-      const message = "Could not read that file. Try another image.";
-      setUploadError(message);
-      toast.error("Upload failed", { description: message });
-    }
+    setUploadError(null);
+    setCurrentSide((current) => ({
+      ...current,
+      image: url,
+      imagePlacement: { ...defaultPlacement },
+    }));
+    setDesignTab("image");
+    setActiveLayer("image");
   }
 
   function handleRemoveImage() {
@@ -157,12 +142,10 @@ export function CustomizerStudio() {
 
     setAdding(true);
     try {
-      const thumbnail = await createCustomTeeThumbnail(customTeeDesign);
-
       await addCustomTeeToCart(
         {
           name: `Custom Tee · ${selectedColor.name}`,
-          image: thumbnail || "/shop/tees/Plain.jpg",
+          image: "/shop/tees/Plain.jpg",
           priceGhs: price,
           size: selectedSize,
           quantity,
@@ -245,7 +228,11 @@ export function CustomizerStudio() {
                 side={activeView}
                 designUrl={currentSide.image}
                 error={uploadError}
-                onUpload={handleUpload}
+                onUploaded={handleImageUploaded}
+                onError={(message) => {
+                  setUploadError(message);
+                  toast.error("Upload failed", { description: message });
+                }}
               />
               {currentSide.image ? (
                 <PlacementControls

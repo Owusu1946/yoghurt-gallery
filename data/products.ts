@@ -108,82 +108,13 @@ const designedTeeFiles = [
   "Silent But.jpg",
 ] as const;
 
-export const plainTees: Product[] = [
-  {
-    slug: "plain-tee",
-    name: "Plain Tee",
-    image: "/shop/tees/Plain.jpg",
-    priceGhs: 85,
-    category: "tees-plain",
-    description: baseDescription("tees-plain", "Plain Tee"),
-    details: baseDetails("tees-plain"),
-    colors: plainTeeColors,
-  },
-];
+export const plainTees: Product[] = [];
 
-export const designedTees: Product[] = designedTeeFiles.map((file) => {
-  const name = nameFromFilename(file);
-  return {
-    slug: slugify(name),
-    name,
-    image: teeImage(file),
-    priceGhs: 120,
-    category: "tees-designed" as const,
-    description: baseDescription("tees-designed", name),
-    details: baseDetails("tees-designed"),
-  };
-});
+export const designedTees: Product[] = [];
 
-export const jerseys: Product[] = [
-  {
-    slug: "jersey-classic",
-    name: "Classic Jersey",
-    image: "/mockups/7.png",
-    priceGhs: 150,
-    category: "jerseys",
-    description: baseDescription("jerseys", "Classic Jersey"),
-    details: baseDetails("jerseys"),
-  },
-  {
-    slug: "jersey-street",
-    name: "Street Jersey",
-    image: "/mockups/4.png",
-    priceGhs: 150,
-    category: "jerseys",
-    description: baseDescription("jerseys", "Street Jersey"),
-    details: baseDetails("jerseys"),
-  },
-  {
-    slug: "jersey-bold",
-    name: "Bold Graphic Jersey",
-    image: "/mockups/2.png",
-    priceGhs: 165,
-    category: "jerseys",
-    description: baseDescription("jerseys", "Bold Graphic Jersey"),
-    details: baseDetails("jerseys"),
-  },
-];
+export const jerseys: Product[] = [];
 
-export const poloLongSleeves: Product[] = [
-  {
-    slug: "polo-long-sleeve",
-    name: "Polo Long Sleeve",
-    image: "/mockups/6.png",
-    priceGhs: 135,
-    category: "polo-long-sleeves",
-    description: baseDescription("polo-long-sleeves", "Polo Long Sleeve"),
-    details: baseDetails("polo-long-sleeves"),
-  },
-  {
-    slug: "polo-long-sleeve-alt",
-    name: "Polo Long Sleeve — Alt",
-    image: "/mockups/5.png",
-    priceGhs: 135,
-    category: "polo-long-sleeves",
-    description: baseDescription("polo-long-sleeves", "Polo Long Sleeve — Alt"),
-    details: baseDetails("polo-long-sleeves"),
-  },
-];
+export const poloLongSleeves: Product[] = [];
 
 export const allProducts: Product[] = [
   ...plainTees,

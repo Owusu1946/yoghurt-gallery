@@ -1,9 +1,9 @@
 "use client";
 
 import { OrderCard } from "@/components/account/order-card";
-import { getEffectiveOrderStatus } from "@/lib/admin-order-status";
-import { getUserOrders } from "@/lib/order-history";
+import { getUserOrdersFromDb } from "@/app/actions/user-orders";
 import type { StoredOrder } from "@/lib/orders";
+import { createBrowserClient } from "@supabase/ssr";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -12,17 +12,40 @@ type OrderHistoryProps = {
 };
 
 export function OrderHistory({ userId }: OrderHistoryProps) {
-  const [orders, setOrders] = useState<StoredOrder[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    function refresh() {
-      setOrders(getUserOrders(userId));
+    async function loadData() {
+      const dbOrders = await getUserOrdersFromDb(userId);
+      setOrders(dbOrders);
       setReady(true);
     }
-    refresh();
-    window.addEventListener("yoghurt-admin-order-status", refresh);
-    return () => window.removeEventListener("yoghurt-admin-order-status", refresh);
+    
+    loadData();
+
+    // Supabase Realtime Subscription for user's orders
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const channel = supabase
+      .channel(`user-orders-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    window.addEventListener("yoghurt-admin-order-status", loadData);
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("yoghurt-admin-order-status", loadData);
+    };
   }, [userId]);
 
   if (!ready) {
@@ -63,8 +86,8 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
         {orders.map((order) => (
           <li key={order.id}>
             <OrderCard
-              order={order}
-              status={getEffectiveOrderStatus(order.id, order.createdAt)}
+              order={order as StoredOrder}
+              status={order.status}
             />
           </li>
         ))}

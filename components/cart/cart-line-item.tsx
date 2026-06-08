@@ -5,6 +5,7 @@ import { formatGhs } from "@/lib/format-ghs";
 import { cn } from "@/lib/cn";
 import { X } from "lucide-react";
 import Image from "next/image";
+import { TeePreview } from "@/components/customizer/tee-preview";
 
 type CartLineItemProps = {
   line: CartLine;
@@ -39,7 +40,22 @@ export function CartLineItem({
           compact ? "h-20 w-16" : "h-24 w-[4.5rem]",
         )}
       >
-        {isDataUrl ? (
+        {line.customTee ? (
+          <TeePreview
+            view={sideHasPrint(normalizeCustomTeeDesign(line.customTee).front) ? "front" : "back"}
+            colorHex={normalizeCustomTeeDesign(line.customTee).colorHex}
+            side={
+              sideHasPrint(normalizeCustomTeeDesign(line.customTee).front)
+                ? normalizeCustomTeeDesign(line.customTee).front
+                : normalizeCustomTeeDesign(line.customTee).back
+            }
+            activeLayer={null}
+            onImagePlacementChange={() => {}}
+            onTextPlacementChange={() => {}}
+            interactive={false}
+            className="absolute inset-0 h-full w-full [&>div]:border-0"
+          />
+        ) : isDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={line.image}

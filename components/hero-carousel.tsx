@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { HeroRecentPurchases } from "./hero-recent-purchases";
 
 const slideCount = heroSlides.length;
 
@@ -212,6 +213,8 @@ export function HeroCarousel() {
           </div>
         </div>
       </motion.div>
+
+      <HeroRecentPurchases />
 
       <div className="pointer-events-none absolute bottom-3 right-4 z-20 text-[10px] text-brand/30 sm:right-6">
         Photos · Pexels
